@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:pet_care_app/theme/app_theme.dart';
 import 'package:pet_care_app/screens/login_screen.dart';
