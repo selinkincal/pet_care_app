@@ -1,6 +1,6 @@
-//service_detail_screen.dart
+//owner_service_detail_screen.dart
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../theme/app_theme.dart';
 
 class ServiceDetailScreen extends StatelessWidget {
   const ServiceDetailScreen({super.key});

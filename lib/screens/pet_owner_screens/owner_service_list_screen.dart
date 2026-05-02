@@ -1,10 +1,10 @@
-//service_list_screen.dart
+//owner_service_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:pet_care_app/screens/service_detail_screen.dart';
-import '../theme/app_theme.dart';
+import 'package:pet_care_app/screens/pet_owner_screens/owner_service_detail_screen.dart';
+import '../../theme/app_theme.dart';
 
-class ServiceListScreen extends StatelessWidget {
-  const ServiceListScreen({super.key});
+class OwnerServiceListScreen extends StatelessWidget {
+  const OwnerServiceListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

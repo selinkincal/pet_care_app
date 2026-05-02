@@ -1,9 +1,9 @@
-//home_screen.dart
+//owner_home_screen.dart
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../theme/app_theme.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class OwnerHomeScreen extends StatelessWidget {
+  const OwnerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

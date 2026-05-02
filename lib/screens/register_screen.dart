@@ -1,8 +1,10 @@
 //register_screen.dart
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'main_navigation.dart';
 import 'login_screen.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -61,13 +63,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  void _handleRegister() {
-    // التحقق من النموذج الأخير قبل التسجيل
+  void _handleRegister() async {
     if (_extraFormKey.currentState!.validate()) {
-      // Firebase'siz: ana sayfaya git
+      final prefs = await SharedPreferences.getInstance();
+      
+      // حفظ الدور الأصلي الذي اختاره (pet_owner, service_provider, أو both)
+      await prefs.setString('registeredRole', _selectedRole!);
+      
+      // تحديد الواجهة الافتراضية التي سيبدأ بها
+      String activeRole = _selectedRole == 'service_provider' ? 'service_provider' : 'pet_owner';
+      
+      // حفظ الدور النشط
+      await prefs.setString('userRole', activeRole);
+      
+      await prefs.setString('userEmail', _emailController.text);
+      await prefs.setString('userPassword', _passwordController.text);
+
+      if (!mounted) return;
+      
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const MainNavigation()),
+        MaterialPageRoute(
+          // التعديل هنا: استخدام activeRole بدلاً من roleToSave
+          builder: (context) => MainNavigation(userRole: activeRole), 
+        ),
       );
     }
   }

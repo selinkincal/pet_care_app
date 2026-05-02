@@ -1,9 +1,9 @@
-//my_bookings_screen.dart
+//owner_bookings_screen.dart
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../theme/app_theme.dart';
 
-class MyBookingsScreen extends StatelessWidget {
-  const MyBookingsScreen({super.key});
+class OwnerBookingsScreen extends StatelessWidget {
+  const OwnerBookingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
