@@ -6,9 +6,9 @@ Evcil hayvan sahipleri ile güvenilir bakım hizmetlerini buluşturan mobil uygu
 
 | İsim | Rol |
 |------|-----|
-| **Selin** | Proje Lideri & Frontend Developer |
-| **Louai** | Backend & Firebase Entegrasyonu |
-| **Naciye** | UI/UX Tasarım & Test |
+| **Selin KINCAL** | Frontend Developer |
+| **Louai ALDALATİ** | Backend & Firebase Entegrasyonu |
+| **Naciye KAYA** | UI/UX Tasarım & Test |
 
 *Bu proje 3 kişilik ekip tarafından geliştirilmektedir.*
 
