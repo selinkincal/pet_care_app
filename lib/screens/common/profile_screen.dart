@@ -4,8 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import 'main_navigation.dart';
 import '../auth/login_screen.dart';
-
-// Yeni ekranların import'ları
 import 'edit_profile_screen.dart';
 import '../pet_owner_screens/owner_my_pets_screen.dart';
 import '../pet_owner_screens/owner_my_favorites_screen.dart';
@@ -141,23 +139,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }),
             ] else ...[
-              _buildMenuItem(
-          Icons.work_history,
-  'Deneyim ve Yeteneklerim',
-  () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ProviderExperienceScreen()),
-    );
-  },
-),
-              
-               _buildMenuItem(Icons.account_balance, 'Banka Hesap Bilgileri', () {
+              _buildMenuItem(Icons.work_history, 'Deneyim ve Yeteneklerim', () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (c) => const BankAccountScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const ProviderExperienceScreen(),
+                  ),
                 );
-              }),],
+              }),
+
+              _buildMenuItem(
+                Icons.account_balance,
+                'Banka Hesap Bilgileri',
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => const BankAccountScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
 
             // Ortak menüler
             _buildMenuItem(Icons.person_outline, 'Kişisel Bilgilerim', () {
