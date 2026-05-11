@@ -1,6 +1,6 @@
-// owner_create_ad_screen.dart
+// owner_create_ad_screen.dart - DÜZELTİLMİŞ VERSİYON
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class OwnerCreateAdScreen extends StatefulWidget {
   const OwnerCreateAdScreen({super.key});
@@ -11,14 +11,62 @@ class OwnerCreateAdScreen extends StatefulWidget {
 
 class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  // متغيرات لتخزين القيم المختارة
+
+  // Değişkenler - initialValue için controller kullanıyoruz
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _detailsController = TextEditingController();
+
   String? _selectedServiceType;
   String? _selectedPet;
 
-  // قوائم وهمية مؤقتة (Mock Data)
-  final List<String> _serviceTypes = ['Köpek Yürüyüşü', 'Evde Bakım', 'Veteriner Ziyareti', 'Eğitim'];
+  final List<String> _serviceTypes = [
+    'Köpek Yürüyüşü',
+    'Evde Bakım',
+    'Veteriner Ziyareti',
+    'Eğitim',
+  ];
   final List<String> _myPets = ['Max (Köpek)', 'Mia (Kedi)', 'Paşa (Kuş)'];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
+    _locationController.dispose();
+    _budgetController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() {
+        _dateController.text = '${picked.day}/${picked.month}/${picked.year}';
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _timeController.text = picked.format(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +95,9 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // حقل عنوان الإعلان
+                // İlan Başlığı
                 TextFormField(
+                  controller: _titleController,
                   decoration: const InputDecoration(
                     labelText: 'İlan Başlığı',
                     hintText: 'Örn: Hafta sonu için köpek gezdirici aranıyor',
@@ -57,11 +106,13 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  validator: (value) => value!.isEmpty ? 'Bu alan zorunludur' : null,
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Bu alan zorunludur'
+                      : null,
                 ),
                 const SizedBox(height: 16),
 
-                // قائمة اختيار الحيوان الأليف
+                // Evcil Hayvan Seçimi - initialValue kullanıldı
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Hangi Evcil Hayvanınız İçin?',
@@ -71,6 +122,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     fillColor: Colors.white,
                   ),
                   value: _selectedPet,
+                  hint: const Text('Seçiniz'),
                   items: _myPets.map((String pet) {
                     return DropdownMenuItem<String>(
                       value: pet,
@@ -82,11 +134,12 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                       _selectedPet = newValue;
                     });
                   },
-                  validator: (value) => value == null ? 'Lütfen bir evcil hayvan seçin' : null,
+                  validator: (value) =>
+                      value == null ? 'Lütfen bir evcil hayvan seçin' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // قائمة اختيار نوع الخدمة
+                // Hizmet Türü Seçimi - initialValue kullanıldı
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Hizmet Türü',
@@ -96,6 +149,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     fillColor: Colors.white,
                   ),
                   value: _selectedServiceType,
+                  hint: const Text('Seçiniz'),
                   items: _serviceTypes.map((String service) {
                     return DropdownMenuItem<String>(
                       value: service,
@@ -107,15 +161,19 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                       _selectedServiceType = newValue;
                     });
                   },
-                  validator: (value) => value == null ? 'Lütfen bir hizmet türü seçin' : null,
+                  validator: (value) =>
+                      value == null ? 'Lütfen bir hizmet türü seçin' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // صف للتاريخ والوقت
+                // Tarih ve Saat
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
+                        controller: _dateController,
+                        readOnly: true,
+                        onTap: () => _selectDate(context),
                         decoration: const InputDecoration(
                           labelText: 'Tarih',
                           hintText: 'GG/AA/YYYY',
@@ -124,11 +182,17 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Tarih seçiniz'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
+                        controller: _timeController,
+                        readOnly: true,
+                        onTap: () => _selectTime(context),
                         decoration: const InputDecoration(
                           labelText: 'Saat',
                           hintText: '14:30',
@@ -137,14 +201,18 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Saat seçiniz'
+                            : null,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // حقل الموقع
+                // Konum
                 TextFormField(
+                  controller: _locationController,
                   decoration: const InputDecoration(
                     labelText: 'Konum',
                     hintText: 'Örn: Kadıköy, Moda',
@@ -153,11 +221,14 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Konum giriniz' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // حقل الميزانية المتوقعة
+                // Bütçe
                 TextFormField(
+                  controller: _budgetController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Bütçe (TL)',
@@ -167,15 +238,19 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Bütçe giriniz' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // حقل التفاصيل
+                // Detaylar
                 TextFormField(
+                  controller: _detailsController,
                   maxLines: 4,
                   decoration: const InputDecoration(
                     labelText: 'Detaylar ve Özel İstekler',
-                    hintText: 'Köpeğim çok enerjiktir, parkta oyun oynamayı sever...',
+                    hintText:
+                        'Köpeğim çok enerjiktir, parkta oyun oynamayı sever...',
                     alignLabelWithHint: true,
                     border: OutlineInputBorder(),
                     filled: true,
@@ -184,26 +259,14 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // زر النشر
+                // Yayınla Butonu
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
-                        // محاكاة عملية النشر
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('İlanınız başarıyla yayınlandı!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        // مسح الحقول بعد النشر الوهمي
-                        _formKey.currentState!.reset();
-                        setState(() {
-                          _selectedPet = null;
-                          _selectedServiceType = null;
-                        });
+                        _submitAd();
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -214,7 +277,11 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                     ),
                     child: const Text(
                       'İlanı Yayınla',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -223,6 +290,56 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _submitAd() {
+    // İlan verilerini göster
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('İlan Yayınlandı!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Başlık: ${_titleController.text}'),
+            Text('Evcil Hayvan: $_selectedPet'),
+            Text('Hizmet: $_selectedServiceType'),
+            Text('Tarih: ${_dateController.text} ${_timeController.text}'),
+            Text('Konum: ${_locationController.text}'),
+            Text('Bütçe: ${_budgetController.text} TL'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearForm();
+            },
+            child: const Text('Tamam'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _clearForm() {
+    _titleController.clear();
+    _dateController.clear();
+    _timeController.clear();
+    _locationController.clear();
+    _budgetController.clear();
+    _detailsController.clear();
+    setState(() {
+      _selectedPet = null;
+      _selectedServiceType = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('İlanınız başarıyla yayınlandı!'),
+        backgroundColor: Colors.green,
       ),
     );
   }

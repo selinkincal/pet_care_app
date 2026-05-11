@@ -1,6 +1,6 @@
 // provider_bookings_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class ProviderBookingsScreen extends StatelessWidget {
   const ProviderBookingsScreen({super.key});
@@ -68,7 +68,9 @@ class ProviderBookingsScreen extends StatelessWidget {
         return Card(
           elevation: 2,
           margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -80,32 +82,45 @@ class ProviderBookingsScreen extends StatelessWidget {
                   children: [
                     Text(
                       job['service']!,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         'Yaklaşan',
-                        style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // التفاصيل
                 _buildInfoRow(Icons.pets, job['pet']!),
                 const SizedBox(height: 6),
                 _buildInfoRow(Icons.person, 'Müşteri: ${job['owner']}'),
                 const SizedBox(height: 6),
-                _buildInfoRow(Icons.calendar_today, '${job['date']} • ${job['time']}'),
+                _buildInfoRow(
+                  Icons.calendar_today,
+                  '${job['date']} • ${job['time']}',
+                ),
                 const SizedBox(height: 6),
                 _buildInfoRow(Icons.location_on, job['location']!),
-                
+
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(),
@@ -117,7 +132,11 @@ class ProviderBookingsScreen extends StatelessWidget {
                   children: [
                     Text(
                       job['price']!,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                     Row(
                       children: [
@@ -126,7 +145,9 @@ class ProviderBookingsScreen extends StatelessWidget {
                           onPressed: () {
                             // محاكاة الاتصال
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('${job['owner']} aranıyor...')),
+                              SnackBar(
+                                content: Text('${job['owner']} aranıyor...'),
+                              ),
                             );
                           },
                         ),
@@ -134,14 +155,23 @@ class ProviderBookingsScreen extends StatelessWidget {
                           onPressed: () {
                             // محاكاة إكمال المهمة
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('İş tamamlandı olarak işaretlendi!')),
+                              const SnackBar(
+                                content: Text(
+                                  'İş tamamlandı olarak işaretlendi!',
+                                ),
+                              ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: const Text('Tamamla', style: TextStyle(color: Colors.white)),
+                          child: const Text(
+                            'Tamamla',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -184,7 +214,9 @@ class ProviderBookingsScreen extends StatelessWidget {
         return Card(
           elevation: 1,
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(16),
             leading: Container(
@@ -195,18 +227,28 @@ class ProviderBookingsScreen extends StatelessWidget {
               ),
               child: const Icon(Icons.check, color: Colors.green),
             ),
-            title: Text(job['service']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              job['service']!,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
                 Text('${job['pet']} • ${job['date']}'),
-                Text(job['location']!, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(
+                  job['location']!,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
               ],
             ),
             trailing: Text(
               job['price']!,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 14),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                fontSize: 14,
+              ),
             ),
           ),
         );

@@ -1,6 +1,8 @@
 //owner_home_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
+import '../common/notification_screen.dart';
+import 'owner_service_list_screen.dart'; // Bunu ekle
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
@@ -11,7 +13,17 @@ class OwnerHomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Pet Care Marketplace'),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.notifications_active),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -19,11 +31,11 @@ class OwnerHomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSearchBar(),
+            _buildSearchBar(context),
             const SizedBox(height: 24),
             _buildCategoriesTitle(),
             const SizedBox(height: 12),
-            _buildCategoriesGrid(),
+            _buildCategoriesGrid(context),
             const SizedBox(height: 24),
             _buildFeaturedTitle(),
             const SizedBox(height: 12),
@@ -34,7 +46,7 @@ class OwnerHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(BuildContext context) {
     return TextField(
       decoration: InputDecoration(
         hintText: 'Ara...',
@@ -46,6 +58,17 @@ class OwnerHomeScreen extends StatelessWidget {
         filled: true,
         fillColor: Colors.grey[100],
       ),
+      onSubmitted: (value) {
+        if (value.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  OwnerServiceListScreen(initialSearchQuery: value),
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -56,7 +79,7 @@ class OwnerHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid(BuildContext context) {
     final categories = [
       {'emoji': '🐕', 'title': 'Bakım'},
       {'emoji': '🚶', 'title': 'Yürüyüş'},
@@ -74,28 +97,40 @@ class OwnerHomeScreen extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         itemCount: categories.length,
         itemBuilder: (context, index) {
-          return Column(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppTheme.lightGreen,
-                  shape: BoxShape.circle,
+          final category = categories[index]['title']!;
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      OwnerServiceListScreen(initialCategory: category),
                 ),
-                child: Center(
-                  child: Text(
-                    categories[index]['emoji']!,
-                    style: const TextStyle(fontSize: 28),
+              );
+            },
+            child: Column(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      categories[index]['emoji']!,
+                      style: const TextStyle(fontSize: 28),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                categories[index]['title']!,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  categories[index]['title']!,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -116,62 +151,76 @@ class OwnerHomeScreen extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemCount: 5,
         itemBuilder: (context, index) {
-          return Container(
-            width: 180,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: AppTheme.cardDecoration,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGreen,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.pets,
-                      size: 50,
-                      color: AppTheme.primaryGreen,
-                    ),
-                  ),
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const OwnerServiceListScreen(),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Profesyonel Bakım',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+              );
+            },
+            child: Container(
+              width: 180,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: AppTheme.cardDecoration,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightGreen,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '250 TL',
-                        style: TextStyle(color: AppTheme.primaryGreen),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.pets,
+                        size: 50,
+                        color: AppTheme.primaryGreen,
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
-                          const Text(' 4.8'),
-                          const Spacer(),
-                          Text(
-                            '📍 Kadıköy',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Profesyonel Bakım',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '250 TL',
+                          style: TextStyle(color: AppTheme.primaryGreen),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              size: 14,
+                              color: Colors.amber,
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const Text(' 4.8'),
+                            const Spacer(),
+                            Text(
+                              '📍 Kadıköy',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },

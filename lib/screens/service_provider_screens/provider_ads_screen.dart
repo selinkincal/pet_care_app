@@ -1,6 +1,6 @@
 // provider_ads_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class ProviderAdsScreen extends StatelessWidget {
   const ProviderAdsScreen({super.key});
@@ -82,7 +82,7 @@ class ProviderAdsScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // قائمة الإعلانات
           Expanded(
             child: ListView.builder(
@@ -126,20 +126,32 @@ class ProviderAdsScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     ad['title']!,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: badgeColor.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Text(
                     ad['status']!,
-                    style: TextStyle(color: badgeColor, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -151,7 +163,10 @@ class ProviderAdsScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.pets, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text(ad['pet']!, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                Text(
+                  ad['pet']!,
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -159,24 +174,33 @@ class ProviderAdsScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.location_on, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text(ad['location']!, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                Text(
+                  ad['location']!,
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
               ],
             ),
             const SizedBox(height: 6),
-            
+
             // تفاصيل الزمان
             Row(
               children: [
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text(ad['date']!, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                Text(
+                  ad['date']!,
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
                 const SizedBox(width: 12),
                 const Icon(Icons.access_time, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text(ad['time']!, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                Text(
+                  ad['time']!,
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
               ],
             ),
-            
+
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(),
@@ -189,10 +213,17 @@ class ProviderAdsScreen extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Bütçe', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      'Bütçe',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     Text(
                       ad['budget']!,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                   ],
                 ),
@@ -211,9 +242,18 @@ class ProviderAdsScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
-                  child: const Text('Başvur', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Başvur',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),

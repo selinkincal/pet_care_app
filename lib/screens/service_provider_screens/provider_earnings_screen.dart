@@ -1,6 +1,6 @@
 // provider_earnings_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class ProviderEarningsScreen extends StatelessWidget {
   const ProviderEarningsScreen({super.key});
@@ -88,7 +88,9 @@ class ProviderEarningsScreen extends StatelessWidget {
                       onPressed: () {
                         // محاكاة سحب الأموال
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Para çekme talebiniz alındı!')),
+                          const SnackBar(
+                            content: Text('Para çekme talebiniz alındı!'),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -101,7 +103,10 @@ class ProviderEarningsScreen extends StatelessWidget {
                       ),
                       child: const Text(
                         'Para Çek',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -133,23 +138,29 @@ class ProviderEarningsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             ListView.builder(
               shrinkWrap: true, // ضروري داخل SingleChildScrollView
-              physics: const NeverScrollableScrollPhysics(), // منع التمرير الداخلي
+              physics:
+                  const NeverScrollableScrollPhysics(), // منع التمرير الداخلي
               itemCount: transactions.length,
               itemBuilder: (context, index) {
                 final tx = transactions[index];
                 final isIncome = tx['amount']!.startsWith('+');
-                
+
                 return Card(
                   elevation: 1,
                   margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: isIncome 
-                            ? Colors.green.withValues(alpha: 0.1) 
+                        color: isIncome
+                            ? Colors.green.withValues(alpha: 0.1)
                             : Colors.red.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
@@ -158,13 +169,22 @@ class ProviderEarningsScreen extends StatelessWidget {
                         color: isIncome ? Colors.green : Colors.red,
                       ),
                     ),
-                    title: Text(tx['title']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text(
+                      tx['title']!,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
                         Text(tx['date']!, style: const TextStyle(fontSize: 12)),
-                        Text(tx['status']!, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        Text(
+                          tx['status']!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                       ],
                     ),
                     trailing: Text(
@@ -198,9 +218,15 @@ class ProviderEarningsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+            Text(
+              title,
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
             const SizedBox(height: 8),
-            Text(amount, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              amount,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ),

@@ -1,8 +1,8 @@
 //register_screen.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import 'main_navigation.dart';
+import '../../core/theme/app_theme.dart';
+import '../common/main_navigation.dart';
 import 'login_screen.dart';
 
 

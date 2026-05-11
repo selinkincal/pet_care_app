@@ -1,9 +1,10 @@
 //owner_service_detail_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
+import 'owner_create_booking_screen.dart';
 
-class ServiceDetailScreen extends StatelessWidget {
-  const ServiceDetailScreen({super.key});
+class OwnerServiceDetailScreen extends StatelessWidget {
+  const OwnerServiceDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +135,17 @@ class ServiceDetailScreen extends StatelessWidget {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        _showBookingConfirmation(context);
+                        // الانتقال لصفحة عمل الحجز الجديدة
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const OwnerCreateBookingScreen(
+                                  serviceName: 'Profesyonel Köpek Bakımı',
+                                  price: '250 TL',
+                                ),
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,

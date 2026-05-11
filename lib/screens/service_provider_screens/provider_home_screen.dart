@@ -1,6 +1,7 @@
 // provider_home_screen.dart
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
+import '../common/notification_screen.dart';
 
 class ProviderHomeScreen extends StatelessWidget {
   const ProviderHomeScreen({super.key});
@@ -17,7 +18,12 @@ class ProviderHomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.notifications_active),
             onPressed: () {
-              // سيتم برمجة صفحة الإشعارات لاحقاً
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
             },
           ),
         ],
@@ -43,8 +49,18 @@ class ProviderHomeScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildStatCard('Tamamlanan', '42', Icons.check_circle, Colors.blue),
-                _buildStatCard('Kazanç', '₺3.250', Icons.account_balance_wallet, AppTheme.primaryGreen),
+                _buildStatCard(
+                  'Tamamlanan',
+                  '42',
+                  Icons.check_circle,
+                  Colors.blue,
+                ),
+                _buildStatCard(
+                  'Kazanç',
+                  '₺3.250',
+                  Icons.account_balance_wallet,
+                  AppTheme.primaryGreen,
+                ),
                 _buildStatCard('Puan', '4.9', Icons.star, Colors.orange),
               ],
             ),
@@ -62,13 +78,16 @@ class ProviderHomeScreen extends StatelessWidget {
                   onPressed: () {
                     // يمكن نقله لصفحة "İşlerim" عند الضغط هنا
                   },
-                  child: const Text('Tümünü Gör', style: TextStyle(color: AppTheme.primaryGreen)),
-                )
+                  child: const Text(
+                    'Tümünü Gör',
+                    style: TextStyle(color: AppTheme.primaryGreen),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             _buildAppointmentCard(),
-            
+
             const SizedBox(height: 32),
 
             // قسم إعلانات الفرص الجديدة السريعة
@@ -77,8 +96,16 @@ class ProviderHomeScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildJobOpportunityCard('Hafta sonu köpek gezdirme', 'Kadıköy, Moda', '₺300'),
-            _buildJobOpportunityCard('Tatil boyu kedi bakımı', 'Üsküdar, Merkez', '₺1200'),
+            _buildJobOpportunityCard(
+              'Hafta sonu köpek gezdirme',
+              'Kadıköy, Moda',
+              '₺300',
+            ),
+            _buildJobOpportunityCard(
+              'Tatil boyu kedi bakımı',
+              'Üsküdar, Merkez',
+              '₺1200',
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -87,7 +114,12 @@ class ProviderHomeScreen extends StatelessWidget {
   }
 
   // دالة مساعدة لبناء بطاقات الإحصائيات (لتجنب تكرار الكود)
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Expanded(
       child: Card(
         elevation: 2,
@@ -101,7 +133,10 @@ class ProviderHomeScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -134,7 +169,11 @@ class ProviderHomeScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.primaryGreen, width: 2),
               ),
-              child: const Icon(Icons.pets, color: AppTheme.primaryGreen, size: 30),
+              child: const Icon(
+                Icons.pets,
+                color: AppTheme.primaryGreen,
+                size: 30,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -153,7 +192,11 @@ class ProviderHomeScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                      const Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Moda Sahili',
@@ -198,7 +241,10 @@ class ProviderHomeScreen extends StatelessWidget {
           ),
           child: const Icon(Icons.campaign, color: Colors.orange),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: Row(
@@ -211,7 +257,11 @@ class ProviderHomeScreen extends StatelessWidget {
         ),
         trailing: Text(
           price,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen, fontSize: 16),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryGreen,
+            fontSize: 16,
+          ),
         ),
       ),
     );

@@ -1,18 +1,18 @@
 // main_navigation.dart
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 // ---------------- صفحات صاحب الحيوان ----------------
-import 'pet_owner_screens/owner_home_screen.dart';
-import 'pet_owner_screens/owner_service_list_screen.dart';
-import 'pet_owner_screens/owner_create_ad_screen.dart'; // الصفحة الجديدة (İlan Ver)
-import 'pet_owner_screens/owner_bookings_screen.dart';
+import '../pet_owner_screens/owner_home_screen.dart';
+import '../pet_owner_screens/owner_service_list_screen.dart';
+import '../pet_owner_screens/owner_create_ad_screen.dart'; // الصفحة الجديدة (İlan Ver)
+import '../pet_owner_screens/owner_bookings_screen.dart';
 
 // ---------------- صفحات مقدم الخدمة ----------------
-import 'service_provider_screens/provider_home_screen.dart';
-import 'service_provider_screens/provider_ads_screen.dart';
-import 'service_provider_screens/provider_bookings_screen.dart';
-import 'service_provider_screens/provider_earnings_screen.dart';
+import '../service_provider_screens/provider_home_screen.dart';
+import '../service_provider_screens/provider_ads_screen.dart';
+import '../service_provider_screens/provider_bookings_screen.dart';
+import '../service_provider_screens/provider_earnings_screen.dart';
 
 // ---------------- صفحة مشتركة ----------------
 import 'profile_screen.dart';
