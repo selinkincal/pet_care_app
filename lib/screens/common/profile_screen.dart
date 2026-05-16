@@ -164,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
 
             // Profil menüsüne ekle
-            _buildMenuItem(Icons.account_balance_wallet, 'Kazançlarım', () {
+            _buildMenuItem(Icons.account_balance_wallet, 'Bakiye Durumu', () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
