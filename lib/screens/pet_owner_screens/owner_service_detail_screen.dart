@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import 'owner_create_booking_screen.dart';
+import '../common/chatting.dart';
 
 class OwnerServiceDetailScreen extends StatelessWidget {
   const OwnerServiceDetailScreen({super.key});
@@ -95,7 +96,7 @@ class OwnerServiceDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '10 yıllık deneyimli ekibimizle evcil hayvanınızın bakımını profesyonelce gerçekleştiriyoruz. Tırnak kesimi, tüy bakımı, banyo ve parfüm hizmetleri dahildir.',
+                    '10 yıllık deneyimli ekibimizle evcil hayvanınızın bakımını profesyonelce gerçekleştiriyoruz. Tırnak kesimi, tüy bakımı, banyo d ve parfüm hizmetleri dahildir.',
                     style: TextStyle(fontSize: 14, height: 1.5),
                   ),
                   const SizedBox(height: 16),
@@ -107,7 +108,6 @@ class OwnerServiceDetailScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  // HARİTA (placeholder - Google Maps sonra eklenecek)
                   Container(
                     height: 180,
                     width: double.infinity,
@@ -135,15 +135,13 @@ class OwnerServiceDetailScreen extends StatelessWidget {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        // الانتقال لصفحة عمل الحجز الجديدة
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const OwnerCreateBookingScreen(
-                                  serviceName: 'Profesyonel Köpek Bakımı',
-                                  price: '250 TL',
-                                ),
+                            builder: (context) => const OwnerCreateBookingScreen(
+                              serviceName: 'Profesyonel Köpek Bakımı',
+                              price: '250 TL',
+                            ),
                           ),
                         );
                       },
@@ -159,6 +157,35 @@ class OwnerServiceDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  // MESAJ GÖNDER BUTONU (YENİ)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChattingScreen(
+                              otherUserName: 'Hizmet Veren',
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat, color: AppTheme.primaryGreen),
+                      label: const Text(
+                        'Mesaj Gönder',
+                        style: TextStyle(color: AppTheme.primaryGreen),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppTheme.primaryGreen),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -167,34 +194,5 @@ class OwnerServiceDetailScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _showBookingConfirmation(BuildContext context) {
-    // Bildirim benzeri dialog (dersin bildirim maddesi için)
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Rezervasyon Alındı!'),
-          ],
-        ),
-        content: const Text(
-          'Rezervasyon talebiniz başarıyla oluşturuldu. En kısa sürede size dönüş yapılacaktır.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
-          ),
-        ],
-      ),
-    );
-
-    // Terminale yazdır (bildirim simülasyonu)
-    debugPrint('🔔 BİLDİRİM: Rezervasyon talebi oluşturuldu!');
   }
 }

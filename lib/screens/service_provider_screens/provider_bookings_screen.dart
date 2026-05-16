@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../common/chatting.dart';
 import 'provider_ad_detail_screen.dart';
+import '../common/chatting.dart';
 
 class ProviderBookingsScreen extends StatefulWidget {
   const ProviderBookingsScreen({super.key});
@@ -242,20 +243,17 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen> {
                       ),
                       Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.chat, color: Colors.blue),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChattingScreen(
-                                    otherUserName: job['owner'],
-                                    otherUserId: job['ownerId'],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                     IconButton(
+  icon: const Icon(Icons.phone, color: Colors.green),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChattingScreen(otherUserName: job['owner']), // const'i KALDIR
+      ),
+    );
+  },
+),
                           ElevatedButton(
                             onPressed: () => _completeJob(index),
                             style: ElevatedButton.styleFrom(
