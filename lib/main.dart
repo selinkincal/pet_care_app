@@ -3,8 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:pet_care_app/core/theme/app_theme.dart';
 import 'package:pet_care_app/screens/auth/login_screen.dart';
 import 'package:pet_care_app/screens/common/main_navigation.dart';
+import 'package:firebase_core/firebase_core.dart'; // BUNU EKLE
+import 'firebase_options.dart'; // BUNU EKLE
 
-void main() {
+void main() async {
+  // async EKLE
+  WidgetsFlutterBinding.ensureInitialized(); // BUNU EKLE
+  await Firebase.initializeApp(
+    // BUNU EKLE
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 

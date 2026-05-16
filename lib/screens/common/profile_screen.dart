@@ -11,6 +11,7 @@ import 'settings_screen.dart';
 import 'help_screen.dart';
 import '../service_provider_screens/provider_bank_account_screen.dart';
 import '../service_provider_screens/provider_experience_screen.dart';
+import '../service_provider_screens/provider_earnings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -161,6 +162,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
             ],
+
+            // Profil menüsüne ekle
+            _buildMenuItem(Icons.account_balance_wallet, 'Kazançlarım', () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (c) => const ProviderEarningsScreen(),
+                ),
+              );
+            }),
 
             // Ortak menüler
             _buildMenuItem(Icons.person_outline, 'Kişisel Bilgilerim', () {

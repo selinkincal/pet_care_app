@@ -1,5 +1,6 @@
 // main_navigation.dart
 import 'package:flutter/material.dart';
+import 'package:pet_care_app/screens/service_provider_screens/provider_my_services.dart';
 import '../../core/theme/app_theme.dart';
 
 // ---------------- صفحات صاحب الحيوان ----------------
@@ -12,7 +13,6 @@ import '../pet_owner_screens/owner_bookings_screen.dart';
 import '../service_provider_screens/provider_home_screen.dart';
 import '../service_provider_screens/provider_ads_screen.dart';
 import '../service_provider_screens/provider_bookings_screen.dart';
-import '../service_provider_screens/provider_earnings_screen.dart';
 
 // ---------------- صفحة مشتركة ----------------
 import 'profile_screen.dart';
@@ -34,20 +34,20 @@ class _MainNavigationState extends State<MainNavigation> {
   // 1. تحديد الصفحات بناءً على الدور
   List<Widget> get _pages {
     if (widget.userRole == 'service_provider') {
-      return const [
-        ProviderHomeScreen(),      // Ana Sayfa (خاصة بمقدم الخدمة)
-        ProviderAdsScreen(),       // İlanlar
-        ProviderBookingsScreen(),  // Randevular (خاصة بمقدم الخدمة)
-        ProviderEarningsScreen(),  // Kazançlarım
-        ProfileScreen(),           // Profil
+      return [
+        ProviderHomeScreen(), // Ana Sayfa (خاصة بمقدم الخدمة)
+        ProviderAdsScreen(), // İlanlar
+        ProviderBookingsScreen(), // Randevular (خاصة بمقدم الخدمة)
+        ProviderMyServicesScreen(), // Hizmetlerim (YENİ)
+        ProfileScreen(), // Profil
       ];
     } else {
-      return const [
-        OwnerHomeScreen(),         // <-- تم التعديل (بدلاً من HomeScreen)
-        OwnerServiceListScreen(),  // <-- تم التعديل (بدلاً من ServiceListScreen)
-        OwnerCreateAdScreen(),     // İlan Ver
-        OwnerBookingsScreen(),     // <-- تم التعديل (بدلاً من MyBookingsScreen)
-        ProfileScreen(),           // Profil
+      return [
+        OwnerHomeScreen(), // <-- تم التعديل (بدلاً من HomeScreen)
+        OwnerServiceListScreen(), // <-- تم التعديل (بدلاً من ServiceListScreen)
+        OwnerCreateAdScreen(), // İlan Ver
+        OwnerBookingsScreen(), // <-- تم التعديل (بدلاً من MyBookingsScreen)
+        ProfileScreen(), // Profil
       ];
     }
   }
@@ -58,16 +58,28 @@ class _MainNavigationState extends State<MainNavigation> {
       return const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
         BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'İlanlar'),
-        BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Randevular'),
-        BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Kazançlar'), // <-- الزر الجديد
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_month),
+          label: 'Randevular',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.build),
+          label: 'Hizmetlerim',
+        ), // YENİ // <-- الزر الجديد
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
       ];
     } else {
       return const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Hizmetler'),
-        BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'İlan Ver'),
-        BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: 'Randevular'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.add_circle_outline),
+          label: 'İlan Ver',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bookmark),
+          label: 'Randevular',
+        ),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
       ];
     }
