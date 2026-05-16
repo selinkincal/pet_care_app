@@ -1,5 +1,6 @@
 // provider_home_screen.dart - İSTATİSTİKLER SİLİNDİ
 import 'package:flutter/material.dart';
+import 'package:pet_care_app/screens/service_provider_screens/provider_ads_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../common/notification_screen.dart';
 import 'provider_bookings_screen.dart';
@@ -154,7 +155,15 @@ class ProviderHomeScreen extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          // İlanlar sayfasına yönlendir
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProviderAdsScreen(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Tümünü Gör',
                           style: TextStyle(color: AppTheme.primaryGreen),
