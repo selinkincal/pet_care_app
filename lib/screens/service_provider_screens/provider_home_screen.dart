@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../common/notification_screen.dart';
+import 'provider_bookings_screen.dart';
 
 class ProviderHomeScreen extends StatelessWidget {
   const ProviderHomeScreen({super.key});
@@ -74,15 +75,17 @@ class ProviderHomeScreen extends StatelessWidget {
                   'Sıradaki Randevun',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                TextButton(
-                  onPressed: () {
-                    // يمكن نقله لصفحة "İşlerim" عند الضغط هنا
-                  },
-                  child: const Text(
-                    'Tümünü Gör',
-                    style: TextStyle(color: AppTheme.primaryGreen),
-                  ),
-                ),
+            TextButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ProviderBookingsScreen(),
+      ),
+    );
+  },
+  child: const Text('Tümünü Gör', style: TextStyle(color: AppTheme.primaryGreen)),
+),
               ],
             ),
             const SizedBox(height: 12),
