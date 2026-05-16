@@ -645,6 +645,7 @@ class _ProviderAdsScreenState extends State<ProviderAdsScreen> {
     );
   }
 
+  // ⬇️⬇️⬇️ DEĞİŞTİRİLEN METOD (RESİMLİ VERSİYON) ⬇️⬇️⬇️
   Widget _buildAdCard(BuildContext context, Map<String, String> ad) {
     Color badgeColor;
     if (ad['status'] == 'Acil') {
@@ -659,136 +660,157 @@ class _ProviderAdsScreenState extends State<ProviderAdsScreen> {
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias, // 👈 RESİM İÇİN EKLENDİ
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 👇 RESİM ALANI (ANA SAYFA STİLİNDE) 👇
+          Container(
+            height: 120,
+            width: double.infinity,
+            color: AppTheme.lightGreen,
+            child: const Center(
+              child: Icon(Icons.pets, size: 50, color: AppTheme.primaryGreen),
+            ),
+          ),
+
+          // 👆 RESİM ALANI BİTTİ 👆
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    ad['title']!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: badgeColor.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Text(
-                    ad['status']!,
-                    style: TextStyle(
-                      color: badgeColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.pets, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  ad['pet']!,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  ad['location']!,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  _formatDate(ad['date']!),
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-                const SizedBox(width: 12),
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  ad['time']!,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Bütçe',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    Expanded(
+                      child: Text(
+                        ad['title']!,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    Text(
-                      ad['budget']!,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: badgeColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Text(
+                        ad['status']!,
+                        style: TextStyle(
+                          color: badgeColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ProviderAdDetailScreen(adData: ad),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.pets, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      ad['pet']!,
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
                     ),
-                  ),
-                  child: const Text(
-                    'Başvur',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      ad['location']!,
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatDate(ad['date']!),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    ),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      ad['time']!,
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bütçe',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        Text(
+                          ad['budget']!,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ProviderAdDetailScreen(adData: ad),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Başvur',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
