@@ -1,13 +1,13 @@
 // provider_ads_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'provider_ad_detail_screen.dart';
 
 class ProviderAdsScreen extends StatelessWidget {
   const ProviderAdsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // بيانات وهمية مؤقتة للإعلانات
     final List<Map<String, String>> mockAds = [
       {
         'title': 'Hafta sonu için köpek gezdirici',
@@ -54,17 +54,11 @@ class ProviderAdsScreen extends StatelessWidget {
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // سيتم إضافة الفلاتر لاحقاً
-            },
-          ),
+          IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
         ],
       ),
       body: Column(
         children: [
-          // شريط البحث المدمج
           Container(
             color: AppTheme.primaryGreen,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -82,8 +76,6 @@ class ProviderAdsScreen extends StatelessWidget {
               ),
             ),
           ),
-
-          // قائمة الإعلانات
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -98,9 +90,7 @@ class ProviderAdsScreen extends StatelessWidget {
     );
   }
 
-  // دالة بناء بطاقة الإعلان
   Widget _buildAdCard(BuildContext context, Map<String, String> ad) {
-    // تحديد لون الوسم بناءً على الحالة
     Color badgeColor;
     if (ad['status'] == 'Acil') {
       badgeColor = Colors.red;
@@ -119,7 +109,6 @@ class ProviderAdsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // العنوان والوسم
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -157,8 +146,6 @@ class ProviderAdsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // تفاصيل الحيوان والموقع
             Row(
               children: [
                 const Icon(Icons.pets, size: 16, color: Colors.grey),
@@ -181,8 +168,6 @@ class ProviderAdsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-
-            // تفاصيل الزمان
             Row(
               children: [
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
@@ -200,13 +185,10 @@ class ProviderAdsScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(),
             ),
-
-            // السعر وزر التقديم
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -229,11 +211,11 @@ class ProviderAdsScreen extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    // محاكاة إرسال طلب على الإعلان
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('İlana başarıyla başvurdunuz!'),
-                        backgroundColor: AppTheme.primaryGreen,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProviderAdDetailScreen(adData: ad),
                       ),
                     );
                   },
@@ -242,17 +224,10 @@ class ProviderAdsScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
                   ),
                   child: const Text(
                     'Başvur',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],

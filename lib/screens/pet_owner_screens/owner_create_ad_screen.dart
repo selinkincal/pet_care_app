@@ -1,5 +1,7 @@
-// owner_create_ad_screen.dart - DÜZELTİLMİŞ VERSİYON
+// owner_create_ad_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 
 class OwnerCreateAdScreen extends StatefulWidget {
@@ -12,7 +14,6 @@ class OwnerCreateAdScreen extends StatefulWidget {
 class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Değişkenler - initialValue için controller kullanıyoruz
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
@@ -22,6 +23,8 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
 
   String? _selectedServiceType;
   String? _selectedPet;
+  File? _selectedImage; // YENİ: Seçilen resim
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _serviceTypes = [
     'Köpek Yürüyüşü',
@@ -40,6 +43,19 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
     _budgetController.dispose();
     _detailsController.dispose();
     super.dispose();
+  }
+
+  // YENİ: Resim seçme fonksiyonu
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -66,6 +82,70 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
         _timeController.text = picked.format(context);
       });
     }
+  }
+
+  void _submitAd() {
+    if (_formKey.currentState!.validate()) {
+      // İlan verilerini göster (resim dahil)
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('İlan Yayınlandı!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_selectedImage != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    _selectedImage!,
+                    height: 100,
+                    width: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text('Başlık: ${_titleController.text}'),
+              Text('Evcil Hayvan: $_selectedPet'),
+              Text('Hizmet: $_selectedServiceType'),
+              Text('Tarih: ${_dateController.text} ${_timeController.text}'),
+              Text('Konum: ${_locationController.text}'),
+              Text('Bütçe: ${_budgetController.text} TL'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _clearForm();
+              },
+              child: const Text('Tamam'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _clearForm() {
+    _titleController.clear();
+    _dateController.clear();
+    _timeController.clear();
+    _locationController.clear();
+    _budgetController.clear();
+    _detailsController.clear();
+    setState(() {
+      _selectedPet = null;
+      _selectedServiceType = null;
+      _selectedImage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('İlanınız başarıyla yayınlandı!'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override
@@ -95,7 +175,53 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // İlan Başlığı
+                // RESİM SEÇME ALANI (YENİ)
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: double.infinity,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightGreen,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: _selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: double.infinity,
+                              height: 150,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.camera_alt,
+                                size: 40,
+                                color: AppTheme.primaryGreen,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Evcil Hayvan Resmi Ekle',
+                                style: TextStyle(color: AppTheme.primaryGreen),
+                              ),
+                              Text(
+                                'Resim eklemek için tıklayın',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 TextFormField(
                   controller: _titleController,
                   decoration: const InputDecoration(
@@ -112,7 +238,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Evcil Hayvan Seçimi - initialValue kullanıldı
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Hangi Evcil Hayvanınız İçin?',
@@ -124,22 +249,15 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                   value: _selectedPet,
                   hint: const Text('Seçiniz'),
                   items: _myPets.map((String pet) {
-                    return DropdownMenuItem<String>(
-                      value: pet,
-                      child: Text(pet),
-                    );
+                    return DropdownMenuItem(value: pet, child: Text(pet));
                   }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedPet = newValue;
-                    });
-                  },
+                  onChanged: (String? newValue) =>
+                      setState(() => _selectedPet = newValue),
                   validator: (value) =>
                       value == null ? 'Lütfen bir evcil hayvan seçin' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // Hizmet Türü Seçimi - initialValue kullanıldı
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Hizmet Türü',
@@ -151,22 +269,18 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                   value: _selectedServiceType,
                   hint: const Text('Seçiniz'),
                   items: _serviceTypes.map((String service) {
-                    return DropdownMenuItem<String>(
+                    return DropdownMenuItem(
                       value: service,
                       child: Text(service),
                     );
                   }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedServiceType = newValue;
-                    });
-                  },
+                  onChanged: (String? newValue) =>
+                      setState(() => _selectedServiceType = newValue),
                   validator: (value) =>
                       value == null ? 'Lütfen bir hizmet türü seçin' : null,
                 ),
                 const SizedBox(height: 16),
 
-                // Tarih ve Saat
                 Row(
                   children: [
                     Expanded(
@@ -210,7 +324,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Konum
                 TextFormField(
                   controller: _locationController,
                   decoration: const InputDecoration(
@@ -226,7 +339,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Bütçe
                 TextFormField(
                   controller: _budgetController,
                   keyboardType: TextInputType.number,
@@ -243,7 +355,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Detaylar
                 TextFormField(
                   controller: _detailsController,
                   maxLines: 4,
@@ -259,16 +370,11 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Yayınla Butonu
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        _submitAd();
-                      }
-                    },
+                    onPressed: _submitAd,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,
                       shape: RoundedRectangleBorder(
@@ -290,56 +396,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _submitAd() {
-    // İlan verilerini göster
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('İlan Yayınlandı!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Başlık: ${_titleController.text}'),
-            Text('Evcil Hayvan: $_selectedPet'),
-            Text('Hizmet: $_selectedServiceType'),
-            Text('Tarih: ${_dateController.text} ${_timeController.text}'),
-            Text('Konum: ${_locationController.text}'),
-            Text('Bütçe: ${_budgetController.text} TL'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _clearForm();
-            },
-            child: const Text('Tamam'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _clearForm() {
-    _titleController.clear();
-    _dateController.clear();
-    _timeController.clear();
-    _locationController.clear();
-    _budgetController.clear();
-    _detailsController.clear();
-    setState(() {
-      _selectedPet = null;
-      _selectedServiceType = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('İlanınız başarıyla yayınlandı!'),
-        backgroundColor: Colors.green,
       ),
     );
   }
