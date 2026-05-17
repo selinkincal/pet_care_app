@@ -1,37 +1,47 @@
 // provider_earnings_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+// استدعاء صفحة تفاصيل الإعلان (تأكد من مسارها الصحيح في مشروعك)
+import 'provider_ad_detail_screen.dart';
 
 class ProviderEarningsScreen extends StatelessWidget {
   const ProviderEarningsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // بيانات وهمية لسجل المعاملات
-    final List<Map<String, String>> transactions = [
+    // تحديث البيانات الوهمية لدعم النوع (type) لتحديد ما إذا كانت ربحاً أم سحباً
+    final List<Map<String, dynamic>> transactions = [
       {
         'title': 'Köpek Yürüyüşü (Max)',
         'date': '1 Mayıs 2026',
         'amount': '+300 TL',
         'status': 'Tamamlandı',
+        'type': 'earning', // 👈 أرباح من إعلان
+        // بيانات وهمية للإعلان لنقلها للصفحة التالية
+        'adData': {'title': 'Köpek Yürüyüşü', 'pet': 'Max'}, 
       },
       {
         'title': 'Evde Kedi Bakımı (Mia)',
         'date': '29 Nisan 2026',
         'amount': '+250 TL',
         'status': 'Tamamlandı',
+        'type': 'earning',
+        'adData': {'title': 'Evde Kedi Bakımı', 'pet': 'Mia'},
       },
       {
         'title': 'Para Çekme İşlemi',
         'date': '25 Nisan 2026',
         'amount': '-1500 TL',
         'status': 'Banka Hesabına Aktarıldı',
+        'type': 'withdrawal', // 👈 سحب بنكي (ليس له إعلان)
       },
       {
         'title': 'Veteriner Refakati (Paşa)',
         'date': '20 Nisan 2026',
         'amount': '+400 TL',
-        'status': 'Tamamlandı',
+        'status': 'Beklemede (Havuzda)',
+        'type': 'earning',
+        'adData': {'title': 'Veteriner Refakati', 'pet': 'Paşa'},
       },
     ];
 
@@ -47,7 +57,7 @@ class ProviderEarningsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // بطاقة الرصيد الرئيسي
+            // بطاقة الرصيد الرئيسي والمحدثة
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -81,12 +91,36 @@ class ProviderEarningsScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  
+                  // 👈 إضافة الرصيد المعلق (Bekleyen Bakiye) بشكل أنيق
+                  const Divider(color: Colors.white30, height: 1),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Bekleyen Bakiye (Havuzda)',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        Text(
+                          '₺400,00',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // محاكاة سحب الأموال
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Para çekme talebiniz alındı!'),
@@ -137,13 +171,13 @@ class ProviderEarningsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ListView.builder(
-              shrinkWrap: true, // ضروري داخل SingleChildScrollView
-              physics:
-                  const NeverScrollableScrollPhysics(), // منع التمرير الداخلي
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: transactions.length,
               itemBuilder: (context, index) {
                 final tx = transactions[index];
-                final isIncome = tx['amount']!.startsWith('+');
+                final isIncome = tx['amount'].toString().startsWith('+');
+                final isEarning = tx['type'] == 'earning'; // التحقق من نوع المعاملة
 
                 return Card(
                   elevation: 1,
@@ -152,6 +186,20 @@ class ProviderEarningsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(
+                    // 👈 التوجيه الديناميكي لصفحة التفاصيل فقط إذا كان الدخل من خدمة
+                    onTap: isEarning
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProviderAdDetailScreen(
+                                  // تمرير بيانات الإعلان للصفحة المستقبلة
+                                  adData: tx['adData'],
+                                ),
+                              ),
+                            );
+                          }
+                        : null, // لا تفعل شيئاً إذا كان سحباً بنكياً
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
@@ -170,30 +218,45 @@ class ProviderEarningsScreen extends StatelessWidget {
                       ),
                     ),
                     title: Text(
-                      tx['title']!,
+                      tx['title'],
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text(tx['date']!, style: const TextStyle(fontSize: 12)),
+                        Text(tx['date'], style: const TextStyle(fontSize: 12)),
                         Text(
-                          tx['status']!,
+                          tx['status'],
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[600],
+                            color: tx['status'].toString().contains('Beklemede')
+                                ? Colors.orange // إعطاء لون برتقالي للحالة المعلقة
+                                : Colors.grey[600],
+                            fontWeight: tx['status'].toString().contains('Beklemede')
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
                     ),
-                    trailing: Text(
-                      tx['amount']!,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isIncome ? AppTheme.primaryGreen : Colors.red,
-                      ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tx['amount'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isIncome ? AppTheme.primaryGreen : Colors.red,
+                          ),
+                        ),
+                        // إضافة سهم صغير للدلالة على إمكانية الضغط إذا كان إعلاناً
+                        if (isEarning) ...[
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right, color: Colors.grey[400]),
+                        ],
+                      ],
                     ),
                   ),
                 );
@@ -205,7 +268,6 @@ class ProviderEarningsScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لبطاقات الملخص
   Widget _buildSummaryCard(String title, String amount) {
     return Expanded(
       child: Container(

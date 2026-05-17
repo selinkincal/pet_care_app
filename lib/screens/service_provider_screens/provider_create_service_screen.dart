@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 
 class ProviderCreateServiceScreen extends StatefulWidget {
-  const ProviderCreateServiceScreen({super.key});
+  // 👈 إضافة متغير لاستقبال بيانات الخدمة للتعديل
+  final Map<String, dynamic>? serviceData;
+
+  const ProviderCreateServiceScreen({super.key, this.serviceData});
 
   @override
   State<ProviderCreateServiceScreen> createState() =>
@@ -35,6 +38,31 @@ class _ProviderCreateServiceScreenState
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // 👈 تعبئة الحقول إذا كنا في وضع التعديل
+    if (widget.serviceData != null) {
+      final s = widget.serviceData!;
+      _titleController.text = s['title'] ?? '';
+      _priceController.text = s['price']?.toString() ?? '';
+      _durationController.text = s['duration'] ?? '';
+      _locationController.text = s['location'] ?? '';
+      _descriptionController.text = s['description'] ?? '';
+      
+      if (_categories.contains(s['category'])) {
+        _selectedCategory = s['category'];
+      }
+
+      if (s['imagePath'] != null && s['imagePath'].toString().isNotEmpty) {
+        final imgFile = File(s['imagePath']);
+        if (imgFile.existsSync()) {
+          _selectedImage = imgFile;
+        }
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _priceController.dispose();
@@ -58,71 +86,72 @@ class _ProviderCreateServiceScreenState
 
   void _submitService() {
     if (_formKey.currentState!.validate()) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Hizmet Yayınlandı!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_selectedImage != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _selectedImage!,
-                    height: 80,
-                    width: 80,
-                    fit: BoxFit.cover,
+      // تجهيز البيانات
+      final updatedService = {
+        'id': widget.serviceData != null ? widget.serviceData!['id'] : DateTime.now().millisecondsSinceEpoch.toString(),
+        'title': _titleController.text,
+        'category': _selectedCategory,
+        'price': _priceController.text,
+        'duration': _durationController.text,
+        'location': _locationController.text,
+        'description': _descriptionController.text,
+        'imagePath': _selectedImage?.path ?? '',
+        'isActive': widget.serviceData != null ? widget.serviceData!['isActive'] : true,
+      };
+
+      if (widget.serviceData != null) {
+        // إذا كنا نعدل، نرجع البيانات مباشرة ونغلق النافذة
+        Navigator.pop(context, updatedService);
+      } else {
+        // إنشاء جديد
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Hizmet Yayınlandı!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_selectedImage != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _selectedImage!,
+                      height: 80,
+                      width: 80,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-              const SizedBox(height: 8),
-              Text('Hizmet: ${_titleController.text}'),
-              Text('Kategori: $_selectedCategory'),
-              Text(
-                'Fiyat: ${_priceController.text} TL / ${_durationController.text}',
+                const SizedBox(height: 8),
+                Text('Hizmet: ${_titleController.text}'),
+                Text('Kategori: $_selectedCategory'),
+                Text('Fiyat: ${_priceController.text} TL / ${_durationController.text}'),
+                Text('Konum: ${_locationController.text}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // إغلاق الـ Dialog
+                  Navigator.pop(context, updatedService); // إغلاق الصفحة
+                },
+                child: const Text('Tamam'),
               ),
-              Text('Konum: ${_locationController.text}'),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _clearForm();
-              },
-              child: const Text('Tamam'),
-            ),
-          ],
-        ),
-      );
+        );
+      }
     }
-  }
-
-  void _clearForm() {
-    _titleController.clear();
-    _priceController.clear();
-    _durationController.clear();
-    _locationController.clear();
-    _descriptionController.clear();
-    setState(() {
-      _selectedCategory = null;
-      _selectedImage = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hizmetiniz başarıyla yayınlandı!'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.serviceData != null;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Yeni Hizmet Ekle'),
+        title: Text(isEditing ? 'Hizmeti Düzenle' : 'Yeni Hizmet Ekle'),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
       ),
@@ -134,7 +163,6 @@ class _ProviderCreateServiceScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hizmet Görseli
                 Center(
                   child: GestureDetector(
                     onTap: _pickImage,
@@ -180,7 +208,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 24),
 
-                // Hizmet Başlığı
                 TextFormField(
                   controller: _titleController,
                   decoration: const InputDecoration(
@@ -197,7 +224,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 16),
 
-                // Kategori Seçimi
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Kategori',
@@ -221,7 +247,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 16),
 
-                // Fiyat ve Süre
                 Row(
                   children: [
                     Expanded(
@@ -261,7 +286,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 16),
 
-                // Konum
                 TextFormField(
                   controller: _locationController,
                   decoration: const InputDecoration(
@@ -277,7 +301,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 16),
 
-                // Açıklama
                 TextFormField(
                   controller: _descriptionController,
                   maxLines: 4,
@@ -295,7 +318,6 @@ class _ProviderCreateServiceScreenState
                 ),
                 const SizedBox(height: 32),
 
-                // Kaydet Butonu
                 SizedBox(
                   width: double.infinity,
                   height: 55,
@@ -307,9 +329,9 @@ class _ProviderCreateServiceScreenState
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Hizmeti Yayınla',
-                      style: TextStyle(
+                    child: Text(
+                      isEditing ? 'Hizmeti Güncelle' : 'Hizmeti Yayınla',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,

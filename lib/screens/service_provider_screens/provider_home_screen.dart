@@ -5,6 +5,8 @@ import '../../core/theme/app_theme.dart';
 import '../common/notification_screen.dart';
 import 'provider_bookings_screen.dart';
 import 'provider_ad_detail_screen.dart';
+import '../common/chat_list_screen.dart';
+
 
 class ProviderHomeScreen extends StatelessWidget {
   const ProviderHomeScreen({super.key});
@@ -19,6 +21,19 @@ class ProviderHomeScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         actions: [
+          // 💬 زر الدردشة المضاف
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChatListScreen(),
+                ),
+              );
+            },
+          ),
+          // زر الإشعارات الحالي الخاص بك
           IconButton(
             icon: const Icon(Icons.notifications_active),
             onPressed: () {

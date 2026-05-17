@@ -1,7 +1,7 @@
 // provider_ad_detail_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import '../common/chatting.dart';
+import '../common/chat_detail_screen.dart';
 
 class ProviderAdDetailScreen extends StatelessWidget {
   final Map<String, String>? adData;
@@ -194,7 +194,7 @@ class ProviderAdDetailScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    ChattingScreen(otherUserName: ownerName),
+                                    ChatDetailScreen(otherUserName: ownerName),
                               ),
                             );
                           },

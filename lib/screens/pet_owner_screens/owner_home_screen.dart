@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import '../common/notification_screen.dart';
 import 'owner_service_list_screen.dart';
+import '../common/chat_list_screen.dart';
 
 class OwnerHomeScreen extends StatefulWidget {
   const OwnerHomeScreen({super.key});
@@ -32,8 +33,19 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PAWLY'),
+        title: const Text('Ana Sayfa'),
         actions: [
+          // 💬 زر الدردشة المضاف
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChatListScreen()),
+              );
+            },
+          ),
+          // زر الإشعارات الحالي الخاص بك
           IconButton(
             icon: const Icon(Icons.notifications_active),
             onPressed: () {

@@ -1,9 +1,9 @@
 // provider_bookings_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import '../common/chatting.dart';
+import '../common/chat_detail_screen.dart';
 import 'provider_ad_detail_screen.dart';
-import '../common/chatting.dart';
+
 
 class ProviderBookingsScreen extends StatefulWidget {
   const ProviderBookingsScreen({super.key});
@@ -249,7 +249,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChattingScreen(otherUserName: job['owner']), // const'i KALDIR
+        builder: (context) => ChatDetailScreen(otherUserName: job['owner']), // const'i KALDIR
       ),
     );
   },

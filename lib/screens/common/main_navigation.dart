@@ -5,14 +5,14 @@ import '../../core/theme/app_theme.dart';
 // ---------------- صفحات صاحب الحيوان ----------------
 import '../pet_owner_screens/owner_home_screen.dart';
 import '../pet_owner_screens/owner_service_list_screen.dart';
-import '../pet_owner_screens/owner_create_ad_screen.dart';
+import '../pet_owner_screens/owner_my_ads_screen.dart';
 import '../pet_owner_screens/owner_bookings_screen.dart';
 
 // ---------------- صفحات مقدم الخدمة ----------------
 import '../service_provider_screens/provider_home_screen.dart';
 import '../service_provider_screens/provider_ads_screen.dart';
 import '../service_provider_screens/provider_bookings_screen.dart';
-import '../service_provider_screens/provider_create_service_screen.dart'; // SADECE BUNU KULLAN
+import '../service_provider_screens/provider_my_services_screen.dart'; 
 
 // ---------------- صفحة مشتركة ----------------
 import 'profile_screen.dart';
@@ -33,7 +33,7 @@ class _MainNavigationState extends State<MainNavigation> {
       return [
         const ProviderHomeScreen(),
         const ProviderAdsScreen(),
-        const ProviderCreateServiceScreen(), // Hizmet Veren için İlan Ver
+        const ProviderMyServicesScreen(), 
         const ProviderBookingsScreen(),
         const ProfileScreen(),
       ];
@@ -41,7 +41,7 @@ class _MainNavigationState extends State<MainNavigation> {
       return [
         const OwnerHomeScreen(),
         const OwnerServiceListScreen(),
-        const OwnerCreateAdScreen(), // Evcil Hayvan Sahibi için İlan Ver
+        const OwnerMyAdsScreen(),
         const OwnerBookingsScreen(),
         const ProfileScreen(),
       ];
@@ -54,8 +54,8 @@ class _MainNavigationState extends State<MainNavigation> {
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
         BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'İlanlar'),
         BottomNavigationBarItem(
-          icon: Icon(Icons.add_circle),
-          label: 'İlan Ver',
+          icon: Icon(Icons.work_outline),
+          label: 'Hizmetlerim',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_month),
@@ -68,8 +68,8 @@ class _MainNavigationState extends State<MainNavigation> {
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Hizmetler'),
         BottomNavigationBarItem(
-          icon: Icon(Icons.add_circle_outline),
-          label: 'İlan Ver',
+          icon: Icon(Icons.campaign_outlined),
+          label: 'İlanlarım',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.bookmark),

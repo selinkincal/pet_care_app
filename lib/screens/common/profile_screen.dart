@@ -161,17 +161,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
               ),
+              // Profil menüsüne ekle
+              _buildMenuItem(Icons.account_balance_wallet, 'Kazançlarım', () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (c) => const ProviderEarningsScreen(),
+                  ),
+                );
+              }),
             ],
-
-            // Profil menüsüne ekle
-            _buildMenuItem(Icons.account_balance_wallet, 'Bakiye Durumu', () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (c) => const ProviderEarningsScreen(),
-                ),
-              );
-            }),
 
             // Ortak menüler
             _buildMenuItem(Icons.person_outline, 'Kişisel Bilgilerim', () {

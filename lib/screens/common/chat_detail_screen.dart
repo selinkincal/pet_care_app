@@ -1,18 +1,19 @@
-// chatting.dart
+// chat_detail_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
-class ChattingScreen extends StatefulWidget {
+// 👈 تم تغيير اسم الكلاس ليتطابق مع اسم الملف الجديد (Clean Code)
+class ChatDetailScreen extends StatefulWidget {
   final String? otherUserName;
   final String? otherUserId;
 
-  const ChattingScreen({super.key, this.otherUserName, this.otherUserId});
+  const ChatDetailScreen({super.key, this.otherUserName, this.otherUserId});
 
   @override
-  State<ChattingScreen> createState() => _ChattingScreenState();
+  State<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChattingScreenState extends State<ChattingScreen> {
+class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final List<Map<String, dynamic>> _messages = [
     {
       'text': 'Merhaba, köpeğim Max için randevu almak istiyorum',
@@ -36,13 +37,13 @@ class _ChattingScreenState extends State<ChattingScreen> {
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
     setState(() {
+      // تحسين طريقة عرض الدقائق لتظهر دائماً من خانتين مثل 10:05
+      final minutes = DateTime.now().minute.toString().padLeft(2, '0');
+      
       _messages.add({
         'text': _messageController.text,
         'isMe': true,
-        'time':
-            DateTime.now().hour.toString() +
-            ':' +
-            DateTime.now().minute.toString(),
+        'time': '${DateTime.now().hour}:$minutes',
       });
     });
     _messageController.clear();

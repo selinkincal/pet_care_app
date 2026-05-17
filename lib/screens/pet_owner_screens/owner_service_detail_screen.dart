@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import 'owner_create_booking_screen.dart';
-import '../common/chatting.dart';
+import '../common/chat_detail_screen.dart';
 
 class OwnerServiceDetailScreen extends StatelessWidget {
   const OwnerServiceDetailScreen({super.key});
@@ -167,7 +167,7 @@ class OwnerServiceDetailScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ChattingScreen(
+                            builder: (context) => const ChatDetailScreen(
                               otherUserName: 'Hizmet Veren',
                             ),
                           ),

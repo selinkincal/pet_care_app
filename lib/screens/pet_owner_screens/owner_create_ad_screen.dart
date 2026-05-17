@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 
 class OwnerCreateAdScreen extends StatefulWidget {
-  const OwnerCreateAdScreen({super.key});
+  // إضافة متغير اختياري لاستقبال بيانات الإعلان في حال التعديل
+  final Map<String, dynamic>? adData;
+
+  const OwnerCreateAdScreen({super.key, this.adData});
 
   @override
   State<OwnerCreateAdScreen> createState() => _OwnerCreateAdScreenState();
@@ -23,7 +26,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
 
   String? _selectedServiceType;
   String? _selectedPet;
-  File? _selectedImage; // YENİ: Seçilen resim
+  File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
   final List<String> _serviceTypes = [
@@ -33,6 +36,42 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
     'Eğitim',
   ];
   final List<String> _myPets = ['Max (Köpek)', 'Mia (Kedi)', 'Paşa (Kuş)'];
+
+  // دالة التهيئة: هنا نتحقق مما إذا كان هناك بيانات للتعديل ونقوم بتعبئتها
+  @override
+  void initState() {
+    super.initState();
+    if (widget.adData != null) {
+      final ad = widget.adData!;
+      _titleController.text = ad['title'] ?? '';
+      _locationController.text = ad['location'] ?? '';
+      _budgetController.text = ad['budget']?.toString() ?? '';
+      _detailsController.text = ad['details'] ?? '';
+
+      // تفكيك التاريخ والوقت إذا كانا مدمجين
+      if (ad['date'] != null) {
+        _dateController.text = ad['date'];
+      }
+      if (ad['time'] != null) {
+        _timeController.text = ad['time'];
+      }
+
+      // التحقق من القوائم المنسدلة لتجنب الأخطاء
+      if (_myPets.contains(ad['pet'])) {
+        _selectedPet = ad['pet'];
+      }
+      if (_serviceTypes.contains(ad['service'])) {
+        _selectedServiceType = ad['service'];
+      }
+
+      if (ad['imagePath'] != null && ad['imagePath'].toString().isNotEmpty) {
+        final imgFile = File(ad['imagePath']);
+        if (imgFile.existsSync()) {
+          _selectedImage = imgFile;
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -45,7 +84,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
     super.dispose();
   }
 
-  // YENİ: Resim seçme fonksiyonu
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -86,73 +124,81 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
 
   void _submitAd() {
     if (_formKey.currentState!.validate()) {
-      // İlan verilerini göster (resim dahil)
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('İlan Yayınlandı!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_selectedImage != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _selectedImage!,
-                    height: 100,
-                    width: 100,
-                    fit: BoxFit.cover,
+      // تجهيز البيانات المحدثة أو الجديدة
+      final updatedAdData = {
+        'id': widget.adData != null
+            ? widget.adData!['id']
+            : DateTime.now().millisecondsSinceEpoch.toString(),
+        'title': _titleController.text,
+        'pet': _selectedPet,
+        'service': _selectedServiceType,
+        'date': _dateController.text,
+        'time': _timeController.text,
+        'location': _locationController.text,
+        'budget': _budgetController.text,
+        'details': _detailsController.text,
+        'imagePath': _selectedImage?.path ?? '',
+        'isActive': widget.adData != null ? widget.adData!['isActive'] : true,
+      };
+
+      // إذا كنا في وضع التعديل، نرجع البيانات مباشرة ونغلق الصفحة
+      if (widget.adData != null) {
+        Navigator.pop(context, updatedAdData);
+      } else {
+        // إذا كان إنشاء إعلان جديد، نظهر رسالة النجاح
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('İlan Yayınlandı!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_selectedImage != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _selectedImage!,
+                      height: 100,
+                      width: 100,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-              const SizedBox(height: 8),
-              Text('Başlık: ${_titleController.text}'),
-              Text('Evcil Hayvan: $_selectedPet'),
-              Text('Hizmet: $_selectedServiceType'),
-              Text('Tarih: ${_dateController.text} ${_timeController.text}'),
-              Text('Konum: ${_locationController.text}'),
-              Text('Bütçe: ${_budgetController.text} TL'),
+                const SizedBox(height: 8),
+                Text('Başlık: ${_titleController.text}'),
+                Text('Evcil Hayvan: $_selectedPet'),
+                Text('Hizmet: $_selectedServiceType'),
+                Text('Tarih: ${_dateController.text} ${_timeController.text}'),
+                Text('Konum: ${_locationController.text}'),
+                Text('Bütçe: ${_budgetController.text} TL'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // إغلاق الـ Dialog
+                  Navigator.pop(
+                    context,
+                    updatedAdData,
+                  ); // إغلاق الصفحة والعودة للإعلانات
+                },
+                child: const Text('Tamam'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _clearForm();
-              },
-              child: const Text('Tamam'),
-            ),
-          ],
-        ),
-      );
+        );
+      }
     }
-  }
-
-  void _clearForm() {
-    _titleController.clear();
-    _dateController.clear();
-    _timeController.clear();
-    _locationController.clear();
-    _budgetController.clear();
-    _detailsController.clear();
-    setState(() {
-      _selectedPet = null;
-      _selectedServiceType = null;
-      _selectedImage = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('İlanınız başarıyla yayınlandı!'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // 👈 هذا السطر يكتشف ما إذا كنا في وضع التعديل أم الإنشاء
+    final isEditing = widget.adData != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yeni İlan Ver'),
+        title: Text(isEditing ? 'İlanı Düzenle' : 'Yeni İlan Ver'),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
       ),
@@ -164,9 +210,14 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Hizmet İhtiyacınızı Belirtin',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  isEditing
+                      ? 'İlan Bilgilerini Güncelleyin'
+                      : 'Hizmet İhtiyacınızı Belirtin',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -175,7 +226,6 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // RESİM SEÇME ALANI (YENİ)
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
@@ -381,9 +431,10 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'İlanı Yayınla',
-                      style: TextStyle(
+                    // 👈 التعديل هنا: نستخدم المتغير لتغيير النص ديناميكياً
+                    child: Text(
+                      isEditing ? 'İlanı Güncelle' : 'İlanı Yayınla',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
