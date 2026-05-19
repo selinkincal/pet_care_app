@@ -1,9 +1,12 @@
 // owner_my_pets_screen.dart
 import 'dart:io';
-import 'dart:convert'; // 👈 تم إضافة مكتبة JSON هنا
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+
+// Firebase kütüphaneleri
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 
 class MyPetsScreen extends StatefulWidget {
@@ -14,82 +17,90 @@ class MyPetsScreen extends StatefulWidget {
 }
 
 class _MyPetsScreenState extends State<MyPetsScreen> {
-  List<Map<String, dynamic>> _pets = [];
+  // Firebase örnekleri
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPets();
-  }
-
-  // 👈 الطريقة الصحيحة والآمنة لقراءة البيانات
-  Future<void> _loadPets() async {
-    final prefs = await SharedPreferences.getInstance();
-    // استخدمنا مفتاحاً جديداً لتجاوز البيانات القديمة التالفة
-    final petsJsonList = prefs.getStringList('my_pets_data') ?? [];
-    
-    setState(() {
-      _pets = petsJsonList.map((e) {
-        return jsonDecode(e) as Map<String, dynamic>; // تحويل النص إلى Map بسلاسة
-      }).toList();
-    });
-  }
-
-  // 👈 الطريقة الصحيحة والآمنة لحفظ البيانات
-  Future<void> _savePets() async {
-    final prefs = await SharedPreferences.getInstance();
-    final petsJsonList = _pets.map((pet) {
-      return jsonEncode(pet); // تحويل الـ Map إلى نص JSON آمن
-    }).toList();
-    
-    await prefs.setStringList('my_pets_data', petsJsonList);
-  }
-
+  // 1. Yeni Hayvan Ekleme İşlemi (Firestore)
   Future<void> _addPet() async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => const AddPetDialog(),
     );
-    if (result != null) {
-      debugPrint('Eklenen hayvan: $result');
-      setState(() {
-        _pets.add(result);
-      });
-      await _savePets();
-      await _loadPets();
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${result['name']} başarıyla eklendi!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    if (result != null) {
+      try {
+        final String? uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          // Dialog'dan gelen sahte ID'yi siliyoruz, çünkü Firestore kendi eşsiz ID'sini üretecek
+          result.remove('id');
+
+          // Veriyi users -> [UID] -> pets -> [Otomatik_ID] yoluna ekliyoruz
+          await _firestore
+              .collection('users')
+              .doc(uid)
+              .collection('pets')
+              .add(result);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${result['name']} başarıyla eklendi!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Hayvan ekleme hatası: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bir hata oluştu.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _editPet(int index) async {
+  // 2. Hayvan Düzenleme İşlemi (Firestore Update)
+  void _editPet(String docId, Map<String, dynamic> currentPet) async {
+    // Mevcut verileri Dialog'a gönderiyoruz
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AddPetDialog(pet: _pets[index]),
+      builder: (context) => AddPetDialog(pet: currentPet),
     );
+
     if (result != null) {
-      setState(() {
-        _pets[index] = result;
-      });
-      await _savePets();
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${result['name']} güncellendi'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      try {
+        final String? uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          result.remove('id'); // Belge ID'sini verinin içinde tutmaya gerek yok
+
+          // Mevcut belgeyi güncelliyoruz
+          await _firestore
+              .collection('users')
+              .doc(uid)
+              .collection('pets')
+              .doc(docId)
+              .update(result);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${result['name']} güncellendi'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Hayvan güncelleme hatası: $e');
+      }
     }
   }
 
-  void _deletePet(int index) async {
+  // 3. Hayvan Silme İşlemi (Firestore Delete)
+  void _deletePet(String docId, String petName) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -107,20 +118,30 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
         ],
       ),
     );
+
     if (confirm == true) {
-      final petName = _pets[index]['name'];
-      setState(() {
-        _pets.removeAt(index);
-      });
-      await _savePets();
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$petName silindi'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      try {
+        final String? uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          // Firestore'dan kalıcı olarak sil
+          await _firestore
+              .collection('users')
+              .doc(uid)
+              .collection('pets')
+              .doc(docId)
+              .delete();
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$petName silindi'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Silme hatası: $e');
+      }
     }
   }
 
@@ -137,46 +158,86 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String? currentUserId = _auth.currentUser?.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Evcil Hayvanlarım'),
         backgroundColor: AppTheme.primaryGreen,
+        elevation: 0,
         actions: [IconButton(icon: const Icon(Icons.add), onPressed: _addPet)],
       ),
-      body: _pets.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.pets, size: 80, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Henüz evcil hayvan eklemediniz',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _addPet,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
+      // 4. StreamBuilder ile Canlı Dinleme
+      body: currentUserId == null
+          ? const Center(child: Text('Lütfen giriş yapın.'))
+          : StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('users')
+                  .doc(currentUserId)
+                  .collection('pets')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // Yüklenme durumu
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryGreen,
                     ),
-                    child: const Text('Hayvan Ekle', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _pets.length,
-              itemBuilder: (context, index) {
-                final pet = _pets[index];
-                return _buildPetCard(pet, index);
+                  );
+                }
+
+                // Hata durumu
+                if (snapshot.hasError) {
+                  return Center(child: Text('Hata oluştu: ${snapshot.error}'));
+                }
+
+                // Veri yoksa
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.pets, size: 80, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Henüz evcil hayvan eklemediniz',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _addPet,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryGreen,
+                          ),
+                          child: const Text(
+                            'Hayvan Ekle',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final pets = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: pets.length,
+                  itemBuilder: (context, index) {
+                    final petDoc = pets[index];
+                    final petData = petDoc.data() as Map<String, dynamic>;
+
+                    return _buildPetCard(petData, petDoc.id);
+                  },
+                );
               },
             ),
     );
   }
 
-  Widget _buildPetCard(Map<String, dynamic> pet, int index) {
+  // Kartı oluştururken artık Firestore Belge ID'sini (docId) parametre olarak alıyoruz
+  Widget _buildPetCard(Map<String, dynamic> pet, String docId) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
@@ -194,7 +255,8 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.lightGreen,
                   shape: BoxShape.circle,
-                  image: pet['imagePath'] != null &&
+                  image:
+                      pet['imagePath'] != null &&
                           pet['imagePath'].toString().isNotEmpty &&
                           File(pet['imagePath']).existsSync()
                       ? DecorationImage(
@@ -203,10 +265,15 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                         )
                       : null,
                 ),
-                child: pet['imagePath'] == null ||
+                child:
+                    pet['imagePath'] == null ||
                         pet['imagePath'].toString().isEmpty ||
                         !File(pet['imagePath']).existsSync()
-                    ? const Icon(Icons.pets, size: 35, color: AppTheme.primaryGreen)
+                    ? const Icon(
+                        Icons.pets,
+                        size: 35,
+                        color: AppTheme.primaryGreen,
+                      )
                     : null,
               ),
               const SizedBox(width: 12),
@@ -289,7 +356,8 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                           size: 20,
                           color: Colors.grey,
                         ),
-                        onPressed: () => _editPet(index),
+                        // Düzenleme fonksiyonuna Belge ID'sini gönderiyoruz
+                        onPressed: () => _editPet(docId, pet),
                       ),
                       IconButton(
                         icon: const Icon(
@@ -297,7 +365,9 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                           size: 20,
                           color: Colors.red,
                         ),
-                        onPressed: () => _deletePet(index),
+                        // Silme fonksiyonuna Belge ID'sini gönderiyoruz
+                        onPressed: () =>
+                            _deletePet(docId, pet['name'] ?? 'Hayvan'),
                       ),
                     ],
                   ),
@@ -379,7 +449,8 @@ class PetDetailSheet extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.lightGreen,
                   shape: BoxShape.circle,
-                  image: pet['imagePath'] != null &&
+                  image:
+                      pet['imagePath'] != null &&
                           pet['imagePath'].toString().isNotEmpty &&
                           File(pet['imagePath']).existsSync()
                       ? DecorationImage(
@@ -388,10 +459,15 @@ class PetDetailSheet extends StatelessWidget {
                         )
                       : null,
                 ),
-                child: pet['imagePath'] == null ||
+                child:
+                    pet['imagePath'] == null ||
                         pet['imagePath'].toString().isEmpty ||
                         !File(pet['imagePath']).existsSync()
-                    ? const Icon(Icons.pets, size: 50, color: AppTheme.primaryGreen)
+                    ? const Icon(
+                        Icons.pets,
+                        size: 50,
+                        color: AppTheme.primaryGreen,
+                      )
                     : null,
               ),
             ),
@@ -399,7 +475,10 @@ class PetDetailSheet extends StatelessWidget {
             Center(
               child: Text(
                 pet['name'] ?? 'İsimsiz',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -415,11 +494,13 @@ class PetDetailSheet extends StatelessWidget {
             _buildDetailRow('Doğum Tarihi', pet['birthDate'] ?? ''),
             _buildDetailRow('Kilo', '${pet['weight'] ?? '0'} kg'),
             _buildDetailRow('Renk', pet['color'] ?? ''),
-            if (pet['microchip'] != null && pet['microchip'].toString().isNotEmpty)
+            if (pet['microchip'] != null &&
+                pet['microchip'].toString().isNotEmpty)
               _buildDetailRow('Mikroçip No', pet['microchip']),
-            if (pet['allergies'] != null && pet['allergies'].toString().isNotEmpty)
+            if (pet['allergies'] != null &&
+                pet['allergies'].toString().isNotEmpty)
               _buildDetailRow('Alerjiler', pet['allergies']),
-            if (pet['notes'] != null && pet['notes'].toString().isNotEmpty) 
+            if (pet['notes'] != null && pet['notes'].toString().isNotEmpty)
               _buildDetailRow('Notlar', pet['notes']),
             const SizedBox(height: 20),
             SizedBox(
@@ -538,7 +619,6 @@ class _AddPetDialogState extends State<AddPetDialog> {
   }
 
   Future<void> _pickImage() async {
-    // ملاحظة: تأكد من إضافة image_picker في ملف pubspec.yaml
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
@@ -583,7 +663,8 @@ class _AddPetDialogState extends State<AddPetDialog> {
                   decoration: BoxDecoration(
                     color: AppTheme.lightGreen,
                     shape: BoxShape.circle,
-                    image: _imagePath != null &&
+                    image:
+                        _imagePath != null &&
                             _imagePath!.isNotEmpty &&
                             File(_imagePath!).existsSync()
                         ? DecorationImage(
@@ -592,7 +673,8 @@ class _AddPetDialogState extends State<AddPetDialog> {
                           )
                         : null,
                   ),
-                  child: _imagePath == null ||
+                  child:
+                      _imagePath == null ||
                           _imagePath!.isEmpty ||
                           !File(_imagePath!).existsSync()
                       ? const Icon(
@@ -605,7 +687,8 @@ class _AddPetDialogState extends State<AddPetDialog> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Resim eklemek için tıklayın',
+                'Resim eklemek için tıklayın\n(Not: Şu an cihaz hafızasına kaydeder)', // 👈 İleride Firebase Storage'a geçirilecek
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
               const SizedBox(height: 16),
@@ -736,10 +819,9 @@ class _AddPetDialogState extends State<AddPetDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              // Dialog'dan sadece girilen verileri Map olarak döndürüyoruz.
+              // Firestore'a kaydetme işlemini asıl sayfadaki _addPet veya _editPet fonksiyonu hallediyor.
               Navigator.pop(context, {
-                'id': widget.pet != null
-                    ? widget.pet!['id']
-                    : DateTime.now().millisecondsSinceEpoch.toString(),
                 'name': _nameController.text,
                 'type': _typeController.text,
                 'breed': _breedController.text,

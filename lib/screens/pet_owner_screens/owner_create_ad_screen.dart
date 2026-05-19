@@ -2,10 +2,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 
 class OwnerCreateAdScreen extends StatefulWidget {
-  // إضافة متغير اختياري لاستقبال بيانات الإعلان في حال التعديل
+  // Düzenleme (Edit) modu için opsiyonel veri parametresi
   final Map<String, dynamic>? adData;
 
   const OwnerCreateAdScreen({super.key, this.adData});
@@ -29,46 +34,88 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
+  // Yüklenme animasyonunu kontrol etmek için değişken
+  bool _isLoading = false;
+  bool _isLoadingPets = true; // Hayvanlar yüklenirken gösterilecek
+
+  // Firebase'den gelecek evcil hayvanlar listesi
+  List<Map<String, dynamic>> _myPetsList = [];
+
+  // Sadece evcil hayvan isimlerini tutacak liste (Dropdown için)
+  List<String> _petNames = [];
+
   final List<String> _serviceTypes = [
     'Köpek Yürüyüşü',
     'Evde Bakım',
     'Veteriner Ziyareti',
     'Eğitim',
   ];
-  final List<String> _myPets = ['Max (Köpek)', 'Mia (Kedi)', 'Paşa (Kuş)'];
 
-  // دالة التهيئة: هنا نتحقق مما إذا كان هناك بيانات للتعديل ونقوم بتعبئتها
   @override
   void initState() {
     super.initState();
-    if (widget.adData != null) {
-      final ad = widget.adData!;
-      _titleController.text = ad['title'] ?? '';
-      _locationController.text = ad['location'] ?? '';
-      _budgetController.text = ad['budget']?.toString() ?? '';
-      _detailsController.text = ad['details'] ?? '';
+    _fetchUserPets(); // Firebase'den hayvanları çek
+  }
 
-      // تفكيك التاريخ والوقت إذا كانا مدمجين
-      if (ad['date'] != null) {
-        _dateController.text = ad['date'];
-      }
-      if (ad['time'] != null) {
-        _timeController.text = ad['time'];
-      }
+  // Kullanıcının evcil hayvanlarını Firebase'den çeken fonksiyon
+  Future<void> _fetchUserPets() async {
+    setState(() {
+      _isLoadingPets = true;
+    });
 
-      // التحقق من القوائم المنسدلة لتجنب الأخطاء
-      if (_myPets.contains(ad['pet'])) {
-        _selectedPet = ad['pet'];
-      }
-      if (_serviceTypes.contains(ad['service'])) {
-        _selectedServiceType = ad['service'];
+    try {
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        debugPrint('Kullanıcı oturumu bulunamadı');
+        setState(() {
+          _isLoadingPets = false;
+        });
+        return;
       }
 
-      if (ad['imagePath'] != null && ad['imagePath'].toString().isNotEmpty) {
-        final imgFile = File(ad['imagePath']);
-        if (imgFile.existsSync()) {
-          _selectedImage = imgFile;
+      // Firestore'dan kullanıcının evcil hayvanlarını çek
+      QuerySnapshot petsSnapshot = await FirebaseFirestore.instance
+          .collection('pets') // 'pets' koleksiyonunuzun adı
+          .where('ownerId', isEqualTo: userId) // Sahip ID'sine göre filtrele
+          .get();
+
+      // Gelen verileri listeye dönüştür
+      _myPetsList = petsSnapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          'name': doc['name'] ?? 'İsimsiz Evcil Hayvan',
+          'type': doc['type'] ?? '',
+          'breed': doc['breed'] ?? '',
+          'age': doc['age'] ?? '',
+          // Diğer alanlarınız varsa ekleyin
+        };
+      }).toList();
+
+      // Sadece isimleri al (Dropdown için)
+      _petNames = _myPetsList.map((pet) => pet['name'] as String).toList();
+
+      // Düzenleme modundaysak ve seçili bir evcil hayvan varsa
+      if (widget.adData != null && widget.adData!['pet'] != null) {
+        final savedPetName = widget.adData!['pet'];
+        if (_petNames.contains(savedPetName)) {
+          _selectedPet = savedPetName;
         }
+      }
+    } catch (e) {
+      debugPrint('Evcil hayvanlar yüklenirken hata: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Evcil hayvanlarınız yüklenemedi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPets = false;
+        });
       }
     }
   }
@@ -122,78 +169,95 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
     }
   }
 
-  void _submitAd() {
+  // Firestore'a Veri Kaydetme veya Güncelleme İşlemi
+  Future<void> _submitAd() async {
     if (_formKey.currentState!.validate()) {
-      // تجهيز البيانات المحدثة أو الجديدة
-      final updatedAdData = {
-        'id': widget.adData != null
-            ? widget.adData!['id']
-            : DateTime.now().millisecondsSinceEpoch.toString(),
-        'title': _titleController.text,
-        'pet': _selectedPet,
-        'service': _selectedServiceType,
-        'date': _dateController.text,
-        'time': _timeController.text,
-        'location': _locationController.text,
-        'budget': _budgetController.text,
-        'details': _detailsController.text,
-        'imagePath': _selectedImage?.path ?? '',
-        'isActive': widget.adData != null ? widget.adData!['isActive'] : true,
-      };
+      setState(() {
+        _isLoading = true;
+      });
 
-      // إذا كنا في وضع التعديل، نرجع البيانات مباشرة ونغلق الصفحة
-      if (widget.adData != null) {
-        Navigator.pop(context, updatedAdData);
-      } else {
-        // إذا كان إنشاء إعلان جديد، نظهر رسالة النجاح
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('İlan Yayınlandı!'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_selectedImage != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      _selectedImage!,
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                Text('Başlık: ${_titleController.text}'),
-                Text('Evcil Hayvan: $_selectedPet'),
-                Text('Hizmet: $_selectedServiceType'),
-                Text('Tarih: ${_dateController.text} ${_timeController.text}'),
-                Text('Konum: ${_locationController.text}'),
-                Text('Bütçe: ${_budgetController.text} TL'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // إغلاق الـ Dialog
-                  Navigator.pop(
-                    context,
-                    updatedAdData,
-                  ); // إغلاق الصفحة والعودة للإعلانات
-                },
-                child: const Text('Tamam'),
-              ),
-            ],
-          ),
+      try {
+        final String? ownerId = FirebaseAuth.instance.currentUser?.uid;
+        if (ownerId == null) throw Exception('Kullanıcı oturumu bulunamadı.');
+
+        // Seçilen evcil hayvanın tam verilerini bul
+        final selectedPetData = _myPetsList.firstWhere(
+          (pet) => pet['name'] == _selectedPet,
+          orElse: () => {},
         );
+
+        // Firebase'e gönderilecek veriyi hazırlıyoruz
+        final Map<String, dynamic> adDataMap = {
+          'ownerId': ownerId,
+          'title': _titleController.text,
+          'petId': selectedPetData['id'], // Evcil hayvan ID'sini de kaydet
+          'pet': _selectedPet, // Evcil hayvan ismi
+          'petType':
+              selectedPetData['type'], // Evcil hayvan türü (köpek, kedi vs.)
+          'service': _selectedServiceType,
+          'date': _dateController.text,
+          'time': _timeController.text,
+          'location': _locationController.text,
+          'budget': double.tryParse(_budgetController.text) ?? 0.0,
+          'details': _detailsController.text,
+          'imagePath': _selectedImage?.path ?? '',
+          'isActive': widget.adData != null ? widget.adData!['isActive'] : true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (widget.adData != null && widget.adData!['id'] != null) {
+          // DÜZENLEME MODU (Update)
+          String docId = widget.adData!['id'];
+          await FirebaseFirestore.instance
+              .collection('ads')
+              .doc(docId)
+              .update(adDataMap);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İlan başarıyla güncellendi!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          // YENİ İLAN MODU (Create)
+          adDataMap['createdAt'] = FieldValue.serverTimestamp();
+
+          await FirebaseFirestore.instance.collection('ads').add(adDataMap);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Yeni ilan yayınlandı!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        Navigator.pop(context, true);
+      } catch (e) {
+        debugPrint('İlan kaydedilirken hata oluştu: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('İlan kaydedilemedi: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 👈 هذا السطر يكتشف ما إذا كنا في وضع التعديل أم الإنشاء
     final isEditing = widget.adData != null;
 
     return Scaffold(
@@ -226,6 +290,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Resim seçme alanı
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
@@ -272,6 +337,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Başlık alanı
                 TextFormField(
                   controller: _titleController,
                   decoration: const InputDecoration(
@@ -288,26 +354,92 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Hangi Evcil Hayvanınız İçin?',
-                    prefixIcon: Icon(Icons.pets),
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  value: _selectedPet,
-                  hint: const Text('Seçiniz'),
-                  items: _myPets.map((String pet) {
-                    return DropdownMenuItem(value: pet, child: Text(pet));
-                  }).toList(),
-                  onChanged: (String? newValue) =>
-                      setState(() => _selectedPet = newValue),
-                  validator: (value) =>
-                      value == null ? 'Lütfen bir evcil hayvan seçin' : null,
-                ),
+                // Evcil Hayvan Seçimi - Firebase'den çekilen verilerle
+                _isLoadingPets
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _petNames.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.pets, color: Colors.orange),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Henüz kayıtlı evcil hayvanınız bulunmuyor.',
+                              style: TextStyle(color: Colors.orange[800]),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Evcil hayvan ekleme sayfasına yönlendirme
+                                // Navigator.pushNamed(context, '/add-pet');
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryGreen,
+                              ),
+                              child: const Text('Evcil Hayvan Ekle'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Hangi Evcil Hayvanınız İçin?',
+                          prefixIcon: Icon(Icons.pets),
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        value: _selectedPet,
+                        hint: const Text('Seçiniz'),
+                        items: _petNames.map((String petName) {
+                          // Evcil hayvanın türünü de göster (opsiyonel)
+                          final petData = _myPetsList.firstWhere(
+                            (pet) => pet['name'] == petName,
+                          );
+                          return DropdownMenuItem(
+                            value: petName,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  petName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                if (petData['type'] != null)
+                                  Text(
+                                    petData['type'],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) =>
+                            setState(() => _selectedPet = newValue),
+                        validator: (value) => value == null
+                            ? 'Lütfen bir evcil hayvan seçin'
+                            : null,
+                      ),
                 const SizedBox(height: 16),
 
+                // Hizmet Türü Seçimi
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Hizmet Türü',
@@ -331,6 +463,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Tarih ve Saat alanları
                 Row(
                   children: [
                     Expanded(
@@ -374,6 +507,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Konum alanı
                 TextFormField(
                   controller: _locationController,
                   decoration: const InputDecoration(
@@ -389,6 +523,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Bütçe alanı
                 TextFormField(
                   controller: _budgetController,
                   keyboardType: TextInputType.number,
@@ -405,6 +540,7 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Detaylar alanı
                 TextFormField(
                   controller: _detailsController,
                   maxLines: 4,
@@ -420,26 +556,37 @@ class _OwnerCreateAdScreenState extends State<OwnerCreateAdScreen> {
                 ),
                 const SizedBox(height: 32),
 
+                // Gönder butonu
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: _submitAd,
+                    onPressed: (_isLoading || _isLoadingPets)
+                        ? null
+                        : _submitAd,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    // 👈 التعديل هنا: نستخدم المتغير لتغيير النص ديناميكياً
-                    child: Text(
-                      isEditing ? 'İlanı Güncelle' : 'İlanı Yayınla',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            isEditing ? 'İlanı Güncelle' : 'İlanı Yayınla',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),

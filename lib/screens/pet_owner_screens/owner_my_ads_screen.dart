@@ -1,7 +1,10 @@
 // owner_my_ads_screen.dart
 import 'package:flutter/material.dart';
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
-// استدعاء صفحة إنشاء الإعلان التي قمت أنت ببرمجتها
 import 'owner_create_ad_screen.dart';
 
 class OwnerMyAdsScreen extends StatefulWidget {
@@ -12,51 +15,50 @@ class OwnerMyAdsScreen extends StatefulWidget {
 }
 
 class _OwnerMyAdsScreenState extends State<OwnerMyAdsScreen> {
-  // بيانات وهمية لمحاكاة الإعلانات التي نشرها صاحب الحيوان
-  final List<Map<String, dynamic>> _myAds = [
-    {
-      'id': '1',
-      'title': 'Hafta sonu için köpek gezdirici',
-      'pet': 'Max (Köpek)',
-      'service': 'Köpek Yürüyüşü',
-      'date': '25/05/2026',
-      'budget': '300',
-      'isActive': true,
-    },
-    {
-      'id': '2',
-      'title': 'Kedim için 3 günlük evde bakım',
-      'pet': 'Mia (Kedi)',
-      'service': 'Evde Bakım',
-      'date': '10/06/2026',
-      'budget': '1200',
-      'isActive': false, // إعلان منتهي أو غير فعال
-    },
-  ];
+  // Firebase örnekleri
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _deleteAd(int index) {
+  // İlanı veritabanından kalıcı olarak silen metod
+  void _deleteAd(String docId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('İlanı Sil'),
-        content: const Text('Bu ilanı silmek istediğinize emin misiniz?'),
+        content: const Text(
+          'Bu ilanı silmek istediğinize emin misiniz? İşlem geri alınamaz.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('İptal'),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _myAds.removeAt(index);
-              });
+            onPressed: () async {
+              // Dialog'u kapat
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('İlan başarıyla silindi'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+
+              try {
+                // Firestore'dan belgeyi (ilanı) sil
+                await _firestore.collection('ads').doc(docId).delete();
+
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('İlan başarıyla silindi'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              } catch (e) {
+                debugPrint('Silme hatası: $e');
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('İlan silinemedi: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Sil', style: TextStyle(color: Colors.red)),
           ),
@@ -67,6 +69,9 @@ class _OwnerMyAdsScreenState extends State<OwnerMyAdsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Giriş yapmış kullanıcının ID'sini alıyoruz
+    final String? currentUserId = _auth.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -74,7 +79,7 @@ class _OwnerMyAdsScreenState extends State<OwnerMyAdsScreen> {
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
       ),
-      // الزر العائم لإنشاء إعلان جديد (ينقلك لصفحتك التي برمجتها)
+      // Yeni İlan Ver Butonu
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
@@ -86,114 +91,184 @@ class _OwnerMyAdsScreenState extends State<OwnerMyAdsScreen> {
         },
         backgroundColor: AppTheme.primaryGreen,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Yeni İlan Ver', style: TextStyle(color: Colors.white)),
+        label: const Text(
+          'Yeni İlan Ver',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
-      body: _myAds.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.assignment_outlined, size: 80, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Henüz hiç ilan vermediniz.',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _myAds.length,
-              itemBuilder: (context, index) {
-                final ad = _myAds[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+      // Güvenlik kontrolü
+      body: currentUserId == null
+          ? const Center(child: Text('Lütfen giriş yapın.'))
+          // Firestore'dan canlı veri çekme işlemi
+          : StreamBuilder<QuerySnapshot>(
+              // Sadece 'ownerId'si mevcut kullanıcı olan ilanları getir
+              stream: _firestore
+                  .collection('ads')
+                  .where('ownerId', isEqualTo: currentUserId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // Veri yüklenirken
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryGreen,
+                    ),
+                  );
+                }
+
+                // Hata oluştuysa
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Bir hata oluştu: ${snapshot.error}'),
+                  );
+                }
+
+                // Kullanıcının hiç ilanı yoksa
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                ad['title'],
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: ad['isActive']
-                                    ? Colors.green.withValues(alpha: 0.1)
-                                    : Colors.grey.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                ad['isActive'] ? 'Aktif' : 'Pasif',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: ad['isActive'] ? Colors.green : Colors.grey[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Icon(
+                          Icons.campaign_outlined,
+                          size: 80,
+                          color: Colors.grey[300],
                         ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow(Icons.pets, ad['pet']),
-                        const SizedBox(height: 4),
-                        _buildInfoRow(Icons.category, ad['service']),
-                        const SizedBox(height: 4),
-                        _buildInfoRow(Icons.calendar_today, ad['date']),
-                        const SizedBox(height: 4),
-                        _buildInfoRow(Icons.attach_money, '${ad['budget']} TL'),
-                        const Divider(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () {
-                                // ✅ تمرير بيانات الإعلان للنافذة وتحديث القائمة عند العودة
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    // قمنا بإزالة const وتمرير adData
-                                    builder: (context) => OwnerCreateAdScreen(adData: ad), 
-                                  ),
-                                ).then((updatedAd) {
-                                  // هذا الجزء لتحديث القائمة فور تعديل الإعلان والعودة
-                                  if (updatedAd != null) {
-                                    setState(() {
-                                      _myAds[index] = updatedAd;
-                                    });
-                                  }
-                                });
-                              },
-                              icon: const Icon(Icons.edit, size: 18),
-                              label: const Text('Düzenle'),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: () => _deleteAd(index),
-                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                              label: const Text('Sil', style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'Henüz hiç ilan vermediniz.',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  );
+                }
+
+                // İlanlar geldi
+                final ads = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16).copyWith(
+                    bottom: 80,
+                  ), // Butonun arkasında kalmaması için alt boşluk
+                  itemCount: ads.length,
+                  itemBuilder: (context, index) {
+                    final doc = ads[index];
+                    // Belge verilerini Map'e çeviriyoruz
+                    final adData = doc.data() as Map<String, dynamic>;
+
+                    // Düzenleme sayfasına göndermek için ID'yi de Map'in içine ekliyoruz
+                    adData['id'] = doc.id;
+
+                    // Veritabanındaki boş olabilecek alanları güvenli bir şekilde alıyoruz
+                    final String title = adData['title'] ?? 'İlan Başlığı';
+                    final bool isActive = adData['isActive'] ?? true;
+                    final String pet = adData['pet'] ?? 'Belirtilmedi';
+                    final String service = adData['service'] ?? 'Hizmet';
+                    final String date = adData['date'] ?? 'Tarih Yok';
+                    final String budget = adData['budget']?.toString() ?? '0';
+
+                    return Card(
+                      elevation: 2,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    isActive ? 'Aktif' : 'Pasif',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isActive
+                                          ? Colors.green
+                                          : Colors.grey[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(Icons.pets, pet),
+                            const SizedBox(height: 4),
+                            _buildInfoRow(Icons.category, service),
+                            const SizedBox(height: 4),
+                            _buildInfoRow(Icons.calendar_today, date),
+                            const SizedBox(height: 4),
+                            _buildInfoRow(Icons.attach_money, '$budget TL'),
+                            const Divider(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () {
+                                    // Düzenle butonuna basıldığında OwnerCreateAdScreen açılır
+                                    // Veritabanından gelen veriler (ID dahil) sayfaya aktarılır
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            OwnerCreateAdScreen(adData: adData),
+                                      ),
+                                    );
+                                    // Not: StreamBuilder kullandığımız için sayfadan dönünce setState yapmaya
+                                    // gerek kalmadı, veritabanı değiştiği an ekran otomatik güncellenir!
+                                  },
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  label: const Text('Düzenle'),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton.icon(
+                                  // Silme işlemi için belgenin Firestore ID'sini gönderiyoruz
+                                  onPressed: () => _deleteAd(doc.id),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    size: 18,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text(
+                                    'Sil',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -205,10 +280,7 @@ class _OwnerMyAdsScreenState extends State<OwnerMyAdsScreen> {
       children: [
         Icon(icon, size: 16, color: Colors.grey[600]),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(color: Colors.grey[800], fontSize: 13),
-        ),
+        Text(text, style: TextStyle(color: Colors.grey[800], fontSize: 13)),
       ],
     );
   }

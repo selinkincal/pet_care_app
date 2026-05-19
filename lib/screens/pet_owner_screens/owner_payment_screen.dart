@@ -1,8 +1,12 @@
 // owner_payment_screen.dart
 import 'package:flutter/material.dart';
+// Firebase Firestore kütüphanesini ekliyoruz
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 
 class OwnerPaymentScreen extends StatefulWidget {
+  // Önceki sayfadan (Rezervasyon Oluşturma) Firestore'daki belgenin ID'sini almamız gerekiyor
+  final String bookingId;
   final String serviceName;
   final String price;
   final String date;
@@ -10,6 +14,7 @@ class OwnerPaymentScreen extends StatefulWidget {
 
   const OwnerPaymentScreen({
     super.key,
+    required this.bookingId, // Veritabanındaki belgeyi bulmak için şart
     required this.serviceName,
     required this.price,
     required this.date,
@@ -23,21 +28,52 @@ class OwnerPaymentScreen extends StatefulWidget {
 class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // محاكاة عملية الدفع
-  void _processPayment() {
+  // Firebase Entegreli Ödeme Simülasyonu
+  Future<void> _processPayment() async {
     if (_formKey.currentState!.validate()) {
-      // إظهار نافذة جاري المعالجة (مؤقتة)
+      // 1. Ekrana yükleniyor animasyonu çıkar (Kullanıcı tekrar butona basmasın diye)
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen)),
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+        ),
       );
 
-      // محاكاة تأخير الشبكة (ثانيتين) ثم إظهار النجاح
-      Future.delayed(const Duration(seconds: 2), () {
-        Navigator.pop(context); // إغلاق دائرة التحميل
+      try {
+        // 2. Banka / Ödeme geçidi simülasyonu (2 saniye bekleme)
+        await Future.delayed(const Duration(seconds: 2));
+
+        // 3. FİREBASE GÜNCELLEMESİ: Ödeme başarılı oldu!
+        // Firestore'daki 'bookings' koleksiyonunda, bizim bookingId'mize sahip belgeyi bul
+        // ve durumunu (status) 'Aktif' olarak güncelle.
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .doc(widget.bookingId) // Parametre olarak gelen ID
+            .update({
+              'status':
+                  'Aktif', // Artık ödeme alındı, randevu onay bekliyor/aktif.
+              'paymentDate':
+                  FieldValue.serverTimestamp(), // Ödemenin yapıldığı kesin anı da kaydediyoruz
+            });
+
+        // 4. İşlem bittikten sonra yükleme ekranını kapat
+        if (!mounted) return;
+        Navigator.pop(context);
+
+        // 5. Başarılı penceresini göster
         _showSuccessDialog();
-      });
+      } catch (e) {
+        // Eğer veritabanına yazarken veya ödemede hata çıkarsa
+        if (!mounted) return;
+        Navigator.pop(context); // Yüklemeyi kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ödeme işlemi sırasında hata oluştu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -63,14 +99,19 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // العودة للشاشة الرئيسية (تغلق نوافذ الدفع والتفاصيل)
+                // Ana Sayfaya Dön (Açık olan ödeme ve detay sayfalarını kapatır)
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryGreen,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Ana Sayfaya Dön', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Ana Sayfaya Dön',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -80,9 +121,11 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // استخراج الرقم من النص (مثال: "250 TL" -> 250) لحساب الإجمالي
-    double basePrice = double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0.0;
-    double serviceFee = basePrice * 0.10; // عمولة التطبيق 10%
+    // Toplam tutarı hesaplamak için rakamları ayrıştırıyoruz
+    double basePrice =
+        double.tryParse(widget.price.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0.0;
+    double serviceFee =
+        basePrice * 0.10; // %10 Uygulama komisyonu/Hizmet Bedeli
     double totalPrice = basePrice + serviceFee;
 
     return Scaffold(
@@ -99,8 +142,11 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. ملخص الطلب
-              const Text('Sipariş Özeti', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              // 1. Sipariş Özeti
+              const Text(
+                'Sipariş Özeti',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -111,30 +157,56 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildSummaryRow('Hizmet', widget.serviceName, isBold: true),
+                    _buildSummaryRow(
+                      'Hizmet',
+                      widget.serviceName,
+                      isBold: true,
+                    ),
                     const SizedBox(height: 8),
-                    _buildSummaryRow('Tarih & Saat', '${widget.date} - ${widget.time}'),
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1)),
-                    _buildSummaryRow('Hizmet Tutarı', '₺${basePrice.toStringAsFixed(2)}'),
+                    _buildSummaryRow(
+                      'Tarih & Saat',
+                      '${widget.date} - ${widget.time}',
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Divider(height: 1),
+                    ),
+                    _buildSummaryRow(
+                      'Hizmet Tutarı',
+                      '₺${basePrice.toStringAsFixed(2)}',
+                    ),
                     const SizedBox(height: 8),
-                    _buildSummaryRow('Hizmet Bedeli', '₺${serviceFee.toStringAsFixed(2)}'),
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1)),
-                    _buildSummaryRow('Toplam', '₺${totalPrice.toStringAsFixed(2)}', isTotal: true),
+                    _buildSummaryRow(
+                      'Hizmet Bedeli',
+                      '₺${serviceFee.toStringAsFixed(2)}',
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Divider(height: 1),
+                    ),
+                    _buildSummaryRow(
+                      'Toplam',
+                      '₺${totalPrice.toStringAsFixed(2)}',
+                      isTotal: true,
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 32),
 
-              // 2. بيانات البطاقة
+              // 2. Kart Bilgileri (Tasarım aynı kalıyor)
               const Row(
                 children: [
                   Icon(Icons.credit_card, color: AppTheme.darkGreen),
                   SizedBox(width: 8),
-                  Text('Kart Bilgileri', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Kart Bilgileri',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: 'Kart Üzerindeki İsim',
@@ -145,7 +217,7 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                 validator: (value) => value!.isEmpty ? 'İsim zorunludur' : null,
               ),
               const SizedBox(height: 16),
-              
+
               TextFormField(
                 keyboardType: TextInputType.number,
                 maxLength: 16,
@@ -155,12 +227,14 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
-                  counterText: "", // إخفاء العداد أسفل الحقل
+                  counterText: "",
                 ),
-                validator: (value) => value!.length < 16 ? 'Geçerli bir kart numarası girin' : null,
+                validator: (value) => value!.length < 16
+                    ? 'Geçerli bir kart numarası girin'
+                    : null,
               ),
               const SizedBox(height: 16),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -192,14 +266,15 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                         fillColor: Colors.white,
                         counterText: "",
                       ),
-                      validator: (value) => value!.length < 3 ? 'Zorunlu' : null,
+                      validator: (value) =>
+                          value!.length < 3 ? 'Zorunlu' : null,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 40),
 
-              // 3. زر الدفع
+              // 3. Ödeme Butonu
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -207,11 +282,17 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                   onPressed: _processPayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryGreen,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     '₺${totalPrice.toStringAsFixed(2)} Öde',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -228,7 +309,7 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -236,8 +317,12 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
     );
   }
 
-  // دالة مساعدة لسطور الفاتورة
-  Widget _buildSummaryRow(String label, String value, {bool isBold = false, bool isTotal = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    bool isTotal = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -246,7 +331,9 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
           style: TextStyle(
             color: isTotal ? Colors.black : Colors.grey[700],
             fontSize: isTotal ? 18 : 14,
-            fontWeight: (isBold || isTotal) ? FontWeight.bold : FontWeight.normal,
+            fontWeight: (isBold || isTotal)
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
         ),
         Text(
@@ -254,7 +341,9 @@ class _OwnerPaymentScreenState extends State<OwnerPaymentScreen> {
           style: TextStyle(
             color: isTotal ? AppTheme.primaryGreen : Colors.black,
             fontSize: isTotal ? 18 : 14,
-            fontWeight: (isBold || isTotal) ? FontWeight.bold : FontWeight.normal,
+            fontWeight: (isBold || isTotal)
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
         ),
       ],

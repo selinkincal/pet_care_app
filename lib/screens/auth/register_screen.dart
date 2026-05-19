@@ -1,10 +1,13 @@
-//register_screen.dart
-import 'package:shared_preferences/shared_preferences.dart';
+// register_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../common/main_navigation.dart';
 import 'login_screen.dart';
-
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,21 +17,21 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // مفاتيح النماذج (استخدمنا مفتاحين منفصلين لعدم تداخل التقييم Validation)
+  // Form anahtarları
   final _formKey = GlobalKey<FormState>();
   final _extraFormKey = GlobalKey<FormState>();
 
-  // متحكمات الخطوة 1 (المعلومات الشخصية)
+  // Adım 1: Kişisel Bilgiler Kontrolcüleri
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // متحكمات الخطوة 2 (معلومات الحيوان)
+  // Adım 2: Evcil Hayvan Bilgileri Kontrolcüleri
   final _petNameController = TextEditingController();
-  final _petTypeController = TextEditingController(); // كقطة، كلب، إلخ
+  final _petTypeController = TextEditingController();
   final _petAgeController = TextEditingController();
 
-  // متحكمات الخطوة 2 (معلومات مقدم الخدمة)
+  // Adım 2: Hizmet Veren Bilgileri Kontrolcüleri
   final _experienceController = TextEditingController();
   final _bioController = TextEditingController();
 
@@ -37,9 +40,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePassword = true;
 
+  // Yüklenme durumunu kontrol etmek için yeni bir değişken (Firebase işlemi sırasında butonu devre dışı bırakmak için)
+  bool _isLoading = false;
+
   @override
   void dispose() {
-    // إغلاق جميع المتحكمات لتوفير الذاكرة
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -53,9 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _nextStep() {
     if (_selectedRole == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen bir rol seçin')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Lütfen bir rol seçin')));
       return;
     }
     setState(() {
@@ -63,31 +68,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  void _handleRegister() async {
+  // Firebase Kayıt İşlemi (Asıl Değişikliğin Yapıldığı Yer)
+  Future<void> _handleRegister() async {
     if (_extraFormKey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // حفظ الدور الأصلي الذي اختاره (pet_owner, service_provider, أو both)
-      await prefs.setString('registeredRole', _selectedRole!);
-      
-      // تحديد الواجهة الافتراضية التي سيبدأ بها
-      String activeRole = _selectedRole == 'service_provider' ? 'service_provider' : 'pet_owner';
-      
-      // حفظ الدور النشط
-      await prefs.setString('userRole', activeRole);
-      
-      await prefs.setString('userEmail', _emailController.text);
-      await prefs.setString('userPassword', _passwordController.text);
+      setState(() {
+        _isLoading = true; // Yüklenme animasyonunu başlat
+      });
 
-      if (!mounted) return;
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          // التعديل هنا: استخدام activeRole بدلاً من roleToSave
-          builder: (context) => MainNavigation(userRole: activeRole), 
-        ),
-      );
+      try {
+        // 1. Firebase Authentication ile yeni bir kullanıcı oluştur
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
+
+        // Kullanıcının benzersiz ID'sini (UID) alıyoruz
+        String uid = userCredential.user!.uid;
+
+        // Varsayılan aktif rolü belirle
+        String activeRole = _selectedRole == 'service_provider'
+            ? 'service_provider'
+            : 'pet_owner';
+
+        // 2. Firestore'a kaydedilecek kullanıcı verilerini hazırla
+        Map<String, dynamic> userData = {
+          'uid': uid,
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'registeredRole': _selectedRole,
+          'activeRole': activeRole,
+          'createdAt': FieldValue.serverTimestamp(), // Sunucu zamanını al
+        };
+
+        // Eğer kullanıcı evcil hayvan sahibiyse, hayvan detaylarını ekle
+        if (_selectedRole == 'pet_owner' || _selectedRole == 'both') {
+          userData['petDetails'] = {
+            'petName': _petNameController.text.trim(),
+            'petType': _petTypeController.text.trim(),
+            'petAge': _petAgeController.text.trim(),
+          };
+        }
+
+        // Eğer kullanıcı hizmet verense, deneyim ve biyografi detaylarını ekle
+        if (_selectedRole == 'service_provider' || _selectedRole == 'both') {
+          userData['providerDetails'] = {
+            'experience': _experienceController.text.trim(),
+            'bio': _bioController.text.trim(),
+          };
+        }
+
+        // 3. Verileri Firestore'daki "users" koleksiyonuna kaydet (UID'yi belge adı olarak kullanarak)
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(userData);
+
+        // 4. Uygulamanın geri kalanının çökmemesi için SharedPreferences'i de güncelliyoruz (Geçiş dönemi için)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('registeredRole', _selectedRole!);
+        await prefs.setString('userRole', activeRole);
+        await prefs.setString('userEmail', _emailController.text.trim());
+        await prefs.setString('userName', _nameController.text.trim());
+
+        if (!mounted) return;
+
+        // Başarılı kayıt sonrası Ana Sayfaya yönlendir
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainNavigation(userRole: activeRole),
+          ),
+        );
+      } on FirebaseAuthException catch (e) {
+        // Firebase Auth kaynaklı hataları yakala ve kullanıcıya göster
+        String errorMessage = 'Kayıt başarısız oldu.';
+        if (e.code == 'weak-password') {
+          errorMessage = 'Girdiğiniz şifre çok zayıf.';
+        } else if (e.code == 'email-already-in-use') {
+          errorMessage = 'Bu e-posta adresi zaten kullanımda.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'Geçersiz bir e-posta adresi girdiniz.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      } catch (e) {
+        // Diğer genel hatalar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bir hata oluştu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false; // İşlem bitince yüklenme animasyonunu durdur
+          });
+        }
+      }
     }
   }
 
@@ -110,7 +191,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                // Başlık
                 const Icon(Icons.pets, size: 60, color: AppTheme.primaryGreen),
                 const SizedBox(height: 10),
                 const Text(
@@ -120,7 +200,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Step göstergesi (Şimdi 3 Adım)
                 Row(
                   children: [
                     _buildStepCircle(0, 'Rol'),
@@ -132,13 +211,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Step içeriği
                 Expanded(
                   child: _currentStep == 0
                       ? _buildRoleSelection()
                       : _currentStep == 1
-                          ? _buildInfoForm()
-                          : _buildExtraInfoForm(),
+                      ? _buildInfoForm()
+                      : _buildExtraInfoForm(),
                 ),
               ],
             ),
@@ -192,7 +270,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildStepLine(int stepIndex) {
     return Container(
       height: 2,
-      color: _currentStep > stepIndex ? AppTheme.primaryGreen : Colors.grey[300],
+      color: _currentStep > stepIndex
+          ? AppTheme.primaryGreen
+          : Colors.grey[300],
     );
   }
 
@@ -289,8 +369,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w600,
                       color: isSelected
                           ? AppTheme.primaryGreen
                           : Colors.black87,
@@ -421,7 +502,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         setState(() {
-                          _currentStep = 2; // الانتقال للخطوة الثالثة الجديدة
+                          _currentStep = 2;
                         });
                       }
                     },
@@ -467,7 +548,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // الواجهة الجديدة للخطوة الثالثة
   Widget _buildExtraInfoForm() {
     return Form(
       key: _extraFormKey,
@@ -475,7 +555,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // حقول مالك الحيوان
             if (_selectedRole == 'pet_owner' || _selectedRole == 'both') ...[
               const Text(
                 'Evcil Hayvan Bilgileri',
@@ -526,8 +605,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
             if (_selectedRole == 'both') const SizedBox(height: 24),
 
-            // حقول مقدم الخدمة
-            if (_selectedRole == 'service_provider' || _selectedRole == 'both') ...[
+            if (_selectedRole == 'service_provider' ||
+                _selectedRole == 'both') ...[
               const Text(
                 'Hizmet Veren Detayları',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -561,14 +640,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
             const SizedBox(height: 32),
 
-            // أزرار الرجوع والتسجيل النهائي
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
                       setState(() {
-                        _currentStep = 1; // الرجوع للخطوة السابقة
+                        _currentStep = 1;
                       });
                     },
                     style: OutlinedButton.styleFrom(
@@ -587,7 +665,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _handleRegister, // دالة التسجيل والانتقال
+                    onPressed: _isLoading ? null : _handleRegister,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,
                       shape: RoundedRectangleBorder(
@@ -595,10 +673,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                     ),
-                    child: const Text(
-                      'Kayıt Ol',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    // Eğer yükleniyorsa ProgressIndicator göster, yoksa Kayıt Ol yazsın
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Kayıt Ol',
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
               ],

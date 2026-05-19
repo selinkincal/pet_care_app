@@ -1,6 +1,10 @@
 // settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
 
@@ -16,10 +20,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
   bool _emailNotifications = false;
 
-  // Şifre değiştirme
+  // Şifre değiştirme kontrolcüleri
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Firebase örnekleri
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -27,27 +35,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
+  // 1. Ayarları Firestore'dan (veya yerel bellekten) yükleme
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _pushNotifications = prefs.getBool('pushNotifications') ?? true;
-      _emailNotifications = prefs.getBool('emailNotifications') ?? false;
-    });
+    final User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          final data = userDoc.data() as Map<String, dynamic>;
+          setState(() {
+            _pushNotifications = data['pushNotifications'] ?? true;
+            _emailNotifications = data['emailNotifications'] ?? false;
+          });
+        }
+      } catch (e) {
+        debugPrint('Ayarlar yüklenirken hata: $e');
+      }
+    }
   }
 
+  // 2. Bildirim ayarlarını Firestore'a kaydetme
   Future<void> _saveNotificationSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('pushNotifications', _pushNotifications);
-    await prefs.setBool('emailNotifications', _emailNotifications);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Bildirim ayarları kaydedildi'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    final User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        await _firestore.collection('users').doc(user.uid).update({
+          'pushNotifications': _pushNotifications,
+          'emailNotifications': _emailNotifications,
+        });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bildirim ayarları başarıyla kaydedildi'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Bildirim ayarları kaydedilirken hata: $e');
+      }
+    }
   }
 
-  Future<void> _changePassword() async {
+  // 3. Güvenli Şifre Değiştirme (Re-authentication gerektirir)
+  Future<void> _changePassword(Function(void Function()) setDialogState) async {
+    if (_oldPasswordController.text.isEmpty ||
+        _newPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lütfen tüm alanları doldurun'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -57,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
+
     if (_newPasswordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -66,28 +112,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
-    // Kaydet
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userPassword', _newPasswordController.text);
-    _oldPasswordController.clear();
-    _newPasswordController.clear();
-    _confirmPasswordController.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Şifre başarıyla değiştirildi'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.pop(context);
+
+    setDialogState(() => _isLoadingPasswordChange = true);
+
+    try {
+      User? user = _auth.currentUser;
+      String email = user?.email ?? '';
+
+      // Güvenlik için kullanıcının eski şifresini doğruluyoruz (Re-authenticate)
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: email,
+        password: _oldPasswordController.text,
+      );
+      await user?.reauthenticateWithCredential(credential);
+
+      // Doğrulama başarılıysa yeni şifreyi ayarla
+      await user?.updatePassword(_newPasswordController.text);
+
+      _oldPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      if (!mounted) return;
+      Navigator.pop(context); // Dialogu kapat
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Şifreniz başarıyla değiştirildi!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMsg = 'Şifre değiştirilemedi.';
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMsg = 'Eski şifreniz hatalı.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bir hata oluştu: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setDialogState(() => _isLoadingPasswordChange = false);
+    }
   }
 
+  // 4. Hesabı tamamen silme işlemi
   Future<void> _deleteAccount() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hesabımı Sil'),
         content: const Text(
-          'Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+          'Hesabınızı silmek istediğinize emin misiniz? Tüm verileriniz kalıcı olarak silinecektir.',
         ),
         actions: [
           TextButton(
@@ -101,67 +183,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+
     if (confirm == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      try {
+        User? user = _auth.currentUser;
+        if (user != null) {
+          // Önce veritabanındaki kullanıcı belgesini sil
+          await _firestore.collection('users').doc(user.uid).delete();
+          // Sonra Auth sisteminden sil
+          await user.delete();
+
+          // Cihazdaki yerel verileri temizle
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        // Güvenlik sebebiyle uzun süredir giriş yapmış kullanıcıların hesap silmeden önce tekrar girmesi istenir
+        if (e.code == 'requires-recent-login') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Güvenlik nedeniyle hesabınızı silmek için lütfen çıkış yapıp tekrar giriş yapın.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Hesap silinemedi: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
+
+  bool _isLoadingPasswordChange = false;
 
   void _showChangePasswordDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Şifre Değiştir'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _oldPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Eski Şifre',
-                border: OutlineInputBorder(),
+      barrierDismissible: false,
+      builder: (context) {
+        // Dialog içinde durum yönetimi için StatefulBuilder kullanıyoruz
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Şifre Değiştir'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _oldPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Eski Şifre',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Yeni Şifre',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Yeni Şifre (Tekrar)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Yeni Şifre',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Yeni Şifre (Tekrar)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: _changePassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-            ),
-            child: const Text('Kaydet', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: _isLoadingPasswordChange
+                      ? null
+                      : () => Navigator.pop(context),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  onPressed: _isLoadingPasswordChange
+                      ? null
+                      : () => _changePassword(setDialogState),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                  ),
+                  child: _isLoadingPasswordChange
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Kaydet',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -271,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: AppTheme.primaryGreen,

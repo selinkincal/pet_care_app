@@ -1,6 +1,10 @@
 // profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 import 'main_navigation.dart';
 import '../auth/login_screen.dart';
@@ -26,29 +30,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userEmail = '';
   String _userName = '';
 
+  // Firebase örnekleri
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   @override
   void initState() {
     super.initState();
     _loadProfileData();
   }
 
+  // Kullanıcı verilerini yükleme işlemi (Önce yerel bellekten, sonra Firestore'dan güncelleyerek)
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 1. Arayüzün hızlı yüklenmesi için önce SharedPreferences'ten verileri alıyoruz
     setState(() {
       _registeredRole = prefs.getString('registeredRole') ?? 'pet_owner';
       _activeRole = prefs.getString('userRole') ?? 'pet_owner';
       _userEmail = prefs.getString('userEmail') ?? 'kullanici@email.com';
       _userName = prefs.getString('userName') ?? 'Kullanıcı Adı';
     });
+
+    // 2. Arka planda Firestore'dan en güncel bilgileri çekiyoruz (Örn: EditProfile sayfasında isim değişmişse günceller)
+    try {
+      final String? uid = _auth.currentUser?.uid;
+      if (uid != null) {
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .get();
+        if (userDoc.exists) {
+          final data = userDoc.data() as Map<String, dynamic>;
+
+          setState(() {
+            _registeredRole = data['registeredRole'] ?? _registeredRole;
+            _activeRole = data['activeRole'] ?? _activeRole;
+            _userName = data['name'] ?? _userName;
+            _userEmail =
+                _auth.currentUser?.email ??
+                _userEmail; // E-postayı Auth'tan almak daha güvenli
+          });
+
+          // Yerel belleği en yeni bilgilerle güncelle
+          await prefs.setString('registeredRole', _registeredRole);
+          await prefs.setString('userRole', _activeRole);
+          await prefs.setString('userName', _userName);
+          await prefs.setString('userEmail', _userEmail);
+        }
+      }
+    } catch (e) {
+      debugPrint('Profil güncellenirken hata: $e');
+    }
   }
 
+  // Hesap modunu değiştirme (Hem yerel hem veritabanı üzerinde)
   Future<void> _switchAccountMode() async {
-    final prefs = await SharedPreferences.getInstance();
     String newActiveRole = _activeRole == 'pet_owner'
         ? 'service_provider'
         : 'pet_owner';
+
+    try {
+      final String? uid = _auth.currentUser?.uid;
+      if (uid != null) {
+        // Yeni aktif rolü Firestore'a kaydet ki kullanıcı başka cihazdan girerse aynı rolde başlasın
+        await _firestore.collection('users').doc(uid).update({
+          'activeRole': newActiveRole,
+        });
+      }
+    } catch (e) {
+      debugPrint('Rol değiştirme hatası: $e');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userRole', newActiveRole);
+
     if (!mounted) return;
+
+    // Yeni rolle ana sayfaya yönlendir
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -57,7 +116,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Gerçek ve güvenli çıkış yapma işlemi (Firebase Logout)
   Future<void> _handleLogout() async {
+    try {
+      // 1. Firebase Authentication'dan çıkış yap
+      await _auth.signOut();
+
+      // 2. Güvenlik için yerel cihazdaki tüm kayıtlı verileri temizle
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (e) {
+      debugPrint('Çıkış yaparken hata: $e');
+    }
+
+    if (!mounted) return;
+
+    // 3. Kullanıcıyı Giriş Ekranına yönlendir
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -118,6 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 32),
 
+            // Sadece 'both' (İkisi de) olarak kayıt olanlarda hesap değiştirme butonu görünür
             if (_registeredRole == 'both') ...[
               _buildSwitchButton(isProviderMode),
               const SizedBox(height: 24),
@@ -140,6 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }),
             ] else ...[
+              // Hizmet Veren menüleri
               _buildMenuItem(Icons.work_history, 'Deneyim ve Yeteneklerim', () {
                 Navigator.push(
                   context,
@@ -161,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
               ),
-              // Profil menüsüne ekle
+
               _buildMenuItem(Icons.account_balance_wallet, 'Kazançlarım', () {
                 Navigator.push(
                   context,
@@ -194,10 +270,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const Divider(),
 
+            // Çıkış Yap Butonu
             _buildMenuItem(
               Icons.logout,
               'Çıkış Yap',
-              _handleLogout,
+              _handleLogout, // Güvenli çıkış fonksiyonuna bağlandı
               isLogout: true,
             ),
           ],
@@ -206,6 +283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Hesap modunu değiştirme butonu
   Widget _buildSwitchButton(bool isProviderMode) {
     return Container(
       decoration: BoxDecoration(
@@ -235,6 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Menü öğeleri tasarımı
   Widget _buildMenuItem(
     IconData icon,
     String title,

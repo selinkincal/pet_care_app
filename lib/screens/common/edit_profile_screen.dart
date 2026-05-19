@@ -1,13 +1,18 @@
 // edit_profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // 👈 ضروري لـ Factory
-import 'package:flutter/gestures.dart';   // 👈 ضروري لـ EagerGestureRecognizer
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+
+// Firebase kütüphanelerini ekliyoruz
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/theme/app_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -28,9 +33,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final ImagePicker _picker = ImagePicker();
 
   GoogleMapController? _mapController;
-  LatLng _selectedLocation = const LatLng(41.0082, 28.9784);
+  LatLng _selectedLocation = const LatLng(
+    41.0082,
+    28.9784,
+  ); // Varsayılan: İstanbul
   Set<Marker> _markers = {};
   bool _isMapVisible = false;
+
+  // Yükleme durumunu kontrol etmek için
+  bool _isLoading = false;
+
+  // Firebase örnekleri
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -38,20 +53,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _loadUserData();
   }
 
+  // 1. Verileri Firestore'dan Çekme İşlemi
   Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    _nameController.text = prefs.getString('userName') ?? '';
-    _emailController.text = prefs.getString('userEmail') ?? '';
-    _phoneController.text = prefs.getString('userPhone') ?? '';
-    _addressController.text = prefs.getString('userAddress') ?? '';
-    _profileImagePath = prefs.getString('profileImagePath');
+    setState(() => _isLoading = true);
 
-    if (_addressController.text.isNotEmpty) {
-      await _getCoordinatesFromAddress(_addressController.text);
+    try {
+      final String? uid = _auth.currentUser?.uid;
+
+      if (uid != null) {
+        // Firestore'dan kullanıcının belgesini getir
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .get();
+
+        if (userDoc.exists) {
+          final data = userDoc.data() as Map<String, dynamic>;
+
+          _nameController.text = data['name'] ?? '';
+          _emailController.text = data['email'] ?? '';
+          _phoneController.text = data['phone'] ?? '';
+          _addressController.text = data['address'] ?? '';
+          _profileImagePath = data['profileImagePath'];
+
+          // Eğer veritabanında daha önce kaydedilmiş bir koordinat varsa haritayı güncelle
+          if (data['latitude'] != null && data['longitude'] != null) {
+            _selectedLocation = LatLng(data['latitude'], data['longitude']);
+            _updateMarker();
+          } else if (_addressController.text.isNotEmpty) {
+            // Koordinat yoksa ama adres metni varsa, adresten koordinat bulmaya çalış
+            await _getCoordinatesFromAddress(_addressController.text);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Veriler yüklenirken hata oluştu: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-    setState(() {});
   }
 
+  // Profil resmi seçme (Not: Gerçek bir uygulamada bu resmi Firebase Storage'a yüklemeliyiz)
   Future<void> _pickProfileImage() async {
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -59,12 +103,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
     if (pickedFile != null) {
       setState(() => _profileImagePath = pickedFile.path);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('profileImagePath', pickedFile.path);
+      // Şimdilik cihazda tutuyoruz, Firestore güncellenirken yolu da kaydedilecek
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profil resmi güncellendi'),
+          content: Text('Profil resmi seçildi, kaydetmeyi unutmayın.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -143,9 +186,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Konum izni gerekli'))
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Konum izni gerekli')));
         return;
       }
     }
@@ -161,22 +204,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await _getAddressFromCoordinates(_selectedLocation);
   }
 
+  // 2. Verileri Firestore'a Kaydetme İşlemi
   Future<void> _saveUserData() async {
     if (_formKey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userName', _nameController.text);
-      await prefs.setString('userEmail', _emailController.text);
-      await prefs.setString('userPhone', _phoneController.text);
-      await prefs.setString('userAddress', _addressController.text);
+      setState(() => _isLoading = true);
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bilgileriniz güncellendi'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
+      try {
+        final String? uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          // Firestore'daki belgeyi güncelle (update kullanıyoruz ki mevcut veriler silinmesin)
+          await _firestore.collection('users').doc(uid).update({
+            'name': _nameController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'address': _addressController.text.trim(),
+            'latitude': _selectedLocation.latitude,
+            'longitude': _selectedLocation.longitude,
+            'profileImagePath':
+                _profileImagePath, // Not: Firebase Storage eklendiğinde bu URL ile değiştirilmeli
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+
+          // Hızlı erişim için SharedPreferences'i de güncelliyoruz
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userName', _nameController.text.trim());
+          await prefs.setString('userPhone', _phoneController.text.trim());
+          await prefs.setString('userAddress', _addressController.text.trim());
+          if (_profileImagePath != null) {
+            await prefs.setString('profileImagePath', _profileImagePath!);
+          }
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bilgileriniz başarıyla güncellendi'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        debugPrint('Kaydetme hatası: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Güncelleme başarısız: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -187,182 +263,214 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: const Text('Kişisel Bilgilerim'),
         backgroundColor: AppTheme.primaryGreen,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: _pickProfileImage,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGreen,
-                    shape: BoxShape.circle,
-                    image: _profileImagePath != null &&
-                            File(_profileImagePath!).existsSync()
-                        ? DecorationImage(
-                            image: FileImage(File(_profileImagePath!)),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                    border: Border.all(color: AppTheme.primaryGreen, width: 2),
-                  ),
-                  child: _profileImagePath == null ||
-                          !File(_profileImagePath!).existsSync()
-                      ? const Icon(
-                          Icons.camera_alt,
-                          size: 40,
+      // Veriler yüklenirken ekranın ortasında indikatör göster
+      body: _isLoading && _nameController.text.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightGreen,
+                          shape: BoxShape.circle,
+                          image:
+                              _profileImagePath != null &&
+                                  File(_profileImagePath!).existsSync()
+                              ? DecorationImage(
+                                  image: FileImage(File(_profileImagePath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          border: Border.all(
+                            color: AppTheme.primaryGreen,
+                            width: 2,
+                          ),
+                        ),
+                        child:
+                            _profileImagePath == null ||
+                                !File(_profileImagePath!).existsSync()
+                            ? const Icon(
+                                Icons.camera_alt,
+                                size: 40,
+                                color: AppTheme.primaryGreen,
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: const Text(
+                        'Profil resmini değiştir',
+                        style: TextStyle(
+                          fontSize: 12,
                           color: AppTheme.primaryGreen,
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _pickProfileImage,
-                child: const Text(
-                  'Profil resmini değiştir',
-                  style: TextStyle(fontSize: 12, color: AppTheme.primaryGreen),
-                ),
-              ),
-              const SizedBox(height: 24),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Ad Soyad',
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? 'Ad soyad giriniz' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'E-posta',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty || !v.contains('@')
-                    ? 'Geçerli e-posta giriniz'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Telefon',
-                  prefixIcon: Icon(Icons.phone),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _addressController,
+                    TextFormField(
+                      controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Adres',
-                        prefixIcon: Icon(Icons.location_on),
+                        labelText: 'Ad Soyad',
+                        prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
-                      maxLines: 2,
+                      validator: (v) => v!.isEmpty ? 'Ad soyad giriniz' : null,
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.map, color: AppTheme.primaryGreen),
-                    onPressed: () =>
-                        setState(() => _isMapVisible = !_isMapVisible),
-                  ),
-                ],
-              ),
-
-              if (_isMapVisible) ...[
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  onPressed: _getCurrentLocation,
-                  icon: const Icon(Icons.my_location),
-                  label: const Text('Mevcut Konumumu Kullan'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 400,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: GoogleMap(
-                      onMapCreated: (controller) => _mapController = controller,
-                      initialCameraPosition: CameraPosition(
-                        target: _selectedLocation,
-                        zoom: 14,
+                    const SizedBox(height: 16),
+                    // E-posta alanı genellikle Auth üzerinden değiştirilir, bu yüzden salt okunur (readOnly) yaptık
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      readOnly:
+                          true, // 👈 Güvenlik için e-posta buradan değiştirilmemeli
+                      decoration: InputDecoration(
+                        labelText: 'E-posta',
+                        prefixIcon: const Icon(Icons.email),
+                        border: const OutlineInputBorder(),
+                        fillColor: Colors.grey[200],
+                        filled: true,
+                        helperText:
+                            'E-posta adresi güvenlik nedeniyle buradan değiştirilemez.',
                       ),
-                      markers: _markers,
-                      // 🔥 الحل السحري: يجبر الخريطة على استقبال الإيماءات واللمسات بدلاً من ScrollView
-                      gestureRecognizers: {
-                        Factory<OneSequenceGestureRecognizer>(
-                          () => EagerGestureRecognizer(),
-                        ),
-                      },
-                      onTap: (LatLng position) async {
-                        setState(() {
-                          _selectedLocation = position;
-                          _updateMarker();
-                        });
-                        await _getAddressFromCoordinates(position);
-                      },
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
-                      zoomControlsEnabled: true,
-                      zoomGesturesEnabled: true,
-                      scrollGesturesEnabled: true, 
-                      rotateGesturesEnabled: true, 
-                      tiltGesturesEnabled: true, 
-                      mapToolbarEnabled: true,
-                      compassEnabled: true,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Haritayı parmağınızla kaydırıp yakınlaştırabilirsiniz',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Telefon',
+                        prefixIcon: Icon(Icons.phone),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _saveUserData,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                  ),
-                  child: const Text(
-                    'Kaydet',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _addressController,
+                            decoration: const InputDecoration(
+                              labelText: 'Adres',
+                              prefixIcon: Icon(Icons.location_on),
+                              border: OutlineInputBorder(),
+                            ),
+                            maxLines: 2,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.map,
+                            color: AppTheme.primaryGreen,
+                          ),
+                          onPressed: () =>
+                              setState(() => _isMapVisible = !_isMapVisible),
+                        ),
+                      ],
+                    ),
+
+                    if (_isMapVisible) ...[
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _getCurrentLocation,
+                        icon: const Icon(Icons.my_location),
+                        label: const Text('Mevcut Konumumu Kullan'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 400,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: GoogleMap(
+                            onMapCreated: (controller) =>
+                                _mapController = controller,
+                            initialCameraPosition: CameraPosition(
+                              target: _selectedLocation,
+                              zoom: 14,
+                            ),
+                            markers: _markers,
+                            gestureRecognizers: {
+                              Factory<OneSequenceGestureRecognizer>(
+                                () => EagerGestureRecognizer(),
+                              ),
+                            },
+                            onTap: (LatLng position) async {
+                              setState(() {
+                                _selectedLocation = position;
+                                _updateMarker();
+                              });
+                              await _getAddressFromCoordinates(position);
+                            },
+                            myLocationEnabled: true,
+                            myLocationButtonEnabled: true,
+                            zoomControlsEnabled: true,
+                            zoomGesturesEnabled: true,
+                            scrollGesturesEnabled: true,
+                            rotateGesturesEnabled: true,
+                            tiltGesturesEnabled: true,
+                            mapToolbarEnabled: true,
+                            compassEnabled: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Haritayı parmağınızla kaydırıp yakınlaştırabilirsiniz',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveUserData,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Kaydet',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }
